@@ -47,9 +47,7 @@ Run the following commands to bootstrap your environment if you are unable to ru
 ```bash
 cd componses
 pip install -r requirements/dev.txt
-npm install
-npm run-script build
-npm start  # run the webpack dev server and flask server using concurrently
+flask run --host=0.0.0.0
 ```
 
 Go to `http://localhost:5000`. You will see a pretty welcome screen.
