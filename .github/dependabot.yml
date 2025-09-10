@@ -1,10 +1,5 @@
 version: 2
 updates:
-  - package-ecosystem: "npm"
-    directory: "/"
-    schedule:
-      interval: "daily"
-
   - package-ecosystem: "docker"
     directory: "/"
     schedule:
@@ -17,10 +12,5 @@ updates:
 
   - package-ecosystem: "pip"
     directory: "/requirements"
-    schedule:
-      interval: "daily"
-
-  - package-ecosystem: "pip"
-    directory: "/"
     schedule:
       interval: "daily"
