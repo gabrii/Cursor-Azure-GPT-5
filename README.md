@@ -18,6 +18,8 @@ To run the production version of the app
 docker compose up flask-prod
 ```
 
+Go to `http://localhost:8080`.
+
 The list of `environment:` variables in the `docker compose.yml` file takes precedence over any variables specified in `.env`.
 
 ### Running locally
