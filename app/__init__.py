@@ -1,3 +1,3 @@
 """Main application package."""
 
-from .app import create_app  # noddqa: F401
+from .app import create_app  # noqa: F401

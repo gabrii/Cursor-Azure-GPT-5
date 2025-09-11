@@ -1,3 +1,9 @@
+"""Response adaptation helpers for Azure Responses API streams.
+
+This module defines ResponseAdapter, which converts Azure SSE streams into
+OpenAI Chat Completions-compatible streaming responses.
+"""
+
 from __future__ import annotations
 
 import random
@@ -11,24 +17,24 @@ from ..common.sse import chunks_to_sse, sse_to_events
 
 
 class ResponseAdapter:
-    """
-    Handles post-request adaptation from Azure Responses API back to a
-    Completions-compatible Flask Response.
+    """Handle post-request adaptation from Azure Responses API to Flask.
 
-    Streaming behavior matches the existing adapter: translate Azure SSE events
-    into OpenAI Chat Completions chunks, including reasoning <think> tags and
-    function call streaming. Direct /v1/responses streams are passed through.
+    Translates Azure SSE events into OpenAI Chat Completions chunks, including
+    reasoning <think> tags and function call streaming. Direct /v1/responses
+    streams are passed through.
     """
 
     # Per-request chat completion id (for streaming)
     _chat_completion_id: Optional[str] = None
 
     def __init__(self, adapter: Any) -> None:
+        """Initialize the adapter with a reference to the AzureAdapter."""
         self.adapter = adapter  # AzureAdapter instance for shared config/env
 
     # ---- Helpers ----
     @staticmethod
     def _create_chat_completion_id() -> str:
+        """Return a new pseudo-random chat completion id."""
         alphabet = ascii_letters + digits
         return "chatcmpl-" + "".join(random.choices(alphabet, k=24))
 
@@ -36,6 +42,7 @@ class ResponseAdapter:
     def _filter_response_headers(
         headers: Dict[str, str], *, streaming: bool
     ) -> Dict[str, str]:
+        """Filter hop-by-hop and incompatible headers for downstream responses."""
         # Minimal hop-by-hop headers list for downstream filtering
         HOP_BY_HOP_HEADERS = {
             "connection",
@@ -62,6 +69,7 @@ class ResponseAdapter:
         delta: Optional[Dict[str, Any]] = None,
         finish_reason: Optional[str] = None,
     ) -> Dict[str, Any]:
+        """Build a Chat Completions chunk dict with the provided delta."""
         return {
             "id": self._chat_completion_id,
             "object": "chat.completion.chunk",
@@ -80,6 +88,7 @@ class ResponseAdapter:
     def _output_item__added(
         self, obj: Optional[Dict[str, Any]]
     ) -> Iterable[Dict[str, Any]]:
+        """Handle response.output_item.added events and emit chunks as needed."""
         if not isinstance(obj, dict):
             return []
         item_type = obj.get("item", {}).get("type")
@@ -125,6 +134,7 @@ class ResponseAdapter:
     def _function_call_arguments__delta(
         self, obj: Optional[Dict[str, Any]]
     ) -> Iterable[Dict[str, Any]]:
+        """Handle response.function_call.arguments.delta events."""
         out: list[Dict[str, Any]] = []
         if getattr(self, "_thinking", False):
             out.append(
@@ -148,12 +158,14 @@ class ResponseAdapter:
     def _output_item__done(
         self, obj: Optional[Dict[str, Any]]
     ) -> Optional[Iterable[Dict[str, Any]]]:
+        """Handle response.output_item.done events (no-op for completions)."""
         # No-op for completions mapping
         return None
 
     def _reasoning_summary_text__delta(
         self, obj: Optional[Dict[str, Any]]
     ) -> Iterable[Dict[str, Any]]:
+        """Handle reasoning.summary_text.delta events and emit text chunks."""
         out: list[Dict[str, Any]] = []
         if getattr(self, "_started_thinking", False):
             out.append(
@@ -176,6 +188,7 @@ class ResponseAdapter:
     def _reasoning_summary_text__done(
         self, obj: Optional[Dict[str, Any]]
     ) -> Iterable[Dict[str, Any]]:
+        """Handle reasoning.summary_text.done events and close think block."""
         return [
             self._build_completion_chunk(delta={"role": "assistant", "content": "\n\n"})
         ]
@@ -183,6 +196,7 @@ class ResponseAdapter:
     def _output_text__delta(
         self, obj: Optional[Dict[str, Any]]
     ) -> Iterable[Dict[str, Any]]:
+        """Handle response.output_text.delta events and emit text chunks."""
         out: list[Dict[str, Any]] = []
         if getattr(self, "_thinking", False):
             out.append(
@@ -202,6 +216,7 @@ class ResponseAdapter:
         return out
 
     def adapt(self, upstream_resp: Any) -> Response:
+        """Adapt an upstream Azure streaming response into SSE for Flask."""
 
         def generate() -> Iterable[bytes]:
             nonlocal upstream_resp

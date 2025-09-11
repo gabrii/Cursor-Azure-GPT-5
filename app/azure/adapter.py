@@ -1,3 +1,5 @@
+"""Azure adapter orchestrating request/response transformations."""
+
 from __future__ import annotations
 
 from typing import Optional
@@ -11,13 +13,12 @@ from .response_adapter import ResponseAdapter
 
 
 class AzureAdapter:
-    """
-    Orchestrates forwarding of a Flask Request to Azure's Responses API while
-    providing a Completions-compatible interface to the caller.
+    """Orchestrate forwarding of a Flask Request to Azure's Responses API.
 
-    This class composes a RequestAdapter (pre-request transformations) and a
-    ResponseAdapter (post-request transformations). It passes itself to the
-    adapters for shared per-request state (models/early_response).
+    Provides a Completions-compatible interface to the caller by composing a
+    RequestAdapter (pre-request transformations) and a ResponseAdapter
+    (post-request transformations). The adapters receive a reference to this
+    instance for shared per-request state (models/early_response).
     """
 
     # Per-request state (streaming completions only)
@@ -25,13 +26,15 @@ class AzureAdapter:
     early_response: Optional[Response] = None
 
     def __init__(self) -> None:
+        """Initialize child adapters and shared state references."""
         # Composition: child adapters get a reference to this orchestrator
         self.request_adapter = RequestAdapter(self)
         self.response_adapter = ResponseAdapter(self)
 
     # Public API
     def forward(self, req: Request) -> Response:
-        """
+        """Forward the Flask request upstream and adapt the response back.
+
         High-level flow:
         1) RequestAdapter builds the upstream request kwargs and stores state
            on this adapter (models) or sets early_response.

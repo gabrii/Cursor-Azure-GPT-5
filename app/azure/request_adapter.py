@@ -1,3 +1,9 @@
+"""Request adaptation helpers for Azure Responses API.
+
+This module defines RequestAdapter, which transforms incoming OpenAI-style
+requests into Azure Responses API request parameters.
+"""
+
 from __future__ import annotations
 
 import json
@@ -8,16 +14,18 @@ from flask import Request, Response
 
 
 class RequestAdapter:
-    """
-    Handles pre-request adaptation from OpenAI Completions-style input into the
-    Azure Responses API request (always streaming completions-like in this codebase).
+    """Handle pre-request adaptation for the Azure Responses API.
 
+    Transforms OpenAI Completions/Chat-style inputs into Azure Responses API
+    request parameters suitable for streaming completions in this codebase.
     Returns request_kwargs for requests.request(**kwargs). If an early
-    short-circuit is needed (e.g., missing config), sets self.adapter.early_response.
-    Also sets per-request state on the adapter (model).
+    short-circuit is needed (for example, missing config), sets
+    self.adapter.early_response and returns an empty dict. Also sets
+    per-request state on the adapter (model).
     """
 
     def __init__(self, adapter: Any) -> None:
+        """Initialize the adapter with a reference to the AzureAdapter."""
         self.adapter = adapter  # AzureAdapter instance for shared config/env
 
     # ---- Helpers (kept local to minimize cross-module coupling) ----
@@ -157,6 +165,12 @@ class RequestAdapter:
 
     # ---- Main adaptation (always streaming completions-like) ----
     def adapt(self, req: Request) -> Dict[str, Any]:
+        """Build requests.request kwargs for the Azure Responses API call.
+
+        Validates the inbound request, sets early_response on error, maps inputs
+        to the Responses schema, and returns a dict suitable for
+        requests.request(**kwargs).
+        """
         # Reset per-request state
         self.adapter.inbound_model = None
         self.adapter.early_response = None

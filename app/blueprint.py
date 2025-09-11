@@ -1,3 +1,9 @@
+"""Flask blueprint and request routing for the proxy service.
+
+This module defines the application blueprint, configures logging, and
+forwards incoming HTTP requests to the configured backend implementation.
+"""
+
 import os
 import sys
 from typing import List
@@ -64,13 +70,22 @@ ALL_METHODS = [
     "TRACE",
 ]
 
+
 @blueprint.route("/health", methods=["GET"])
 def health():
+    """Return a simple health check payload."""
     return jsonify({"status": "ok"})
+
 
 @blueprint.route("/", defaults={"path": ""}, methods=ALL_METHODS)
 @blueprint.route("/<path:path>", methods=ALL_METHODS)
 def catch_all(path: str):
+    """Forward any request path to the configured backend.
+
+    Logs the incoming request and forwards it to the selected backend
+    implementation, returning the backend's response. If forwarding fails,
+    returns a 502 JSON error payload.
+    """
     # Log the request details
     log_request(request)
     # Forward the request to selected backend and return its response
@@ -84,6 +99,7 @@ def catch_all(path: str):
             502,
             {"Content-Type": "application/json"},
         )
+
 
 # def main():
 #     host = os.environ.get("HOST", "0.0.0.0")

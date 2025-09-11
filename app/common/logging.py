@@ -1,3 +1,5 @@
+"""Utilities for structured, pretty logging of requests and SSE events."""
+
 import json
 import os
 import time
@@ -18,6 +20,7 @@ console = Console()
 
 
 def should_redact() -> bool:
+    """Return True if sensitive values should be redacted in logs."""
     # Set LOG_REDACT=false to disable redaction (default True)
     return os.environ.get("LOG_REDACT", "true").strip().lower() not in {
         "0",
@@ -27,6 +30,7 @@ def should_redact() -> bool:
 
 
 def redact_value(value: str) -> str:
+    """Mask a potentially sensitive value for safer logging."""
     if not value:
         return value
     if len(value) <= 8:
@@ -35,6 +39,7 @@ def redact_value(value: str) -> str:
 
 
 def redact_headers(headers: Dict[str, str]) -> Dict[str, str]:
+    """Return a copy of headers with sensitive values redacted when enabled."""
     if not should_redact():
         return dict(headers)
     redacted: Dict[str, str] = {}
@@ -62,6 +67,7 @@ def redact_headers(headers: Dict[str, str]) -> Dict[str, str]:
 
 
 def multidict_to_dict(md) -> Dict[str, List[str]]:
+    """Convert a werkzeug MultiDict-like object to a plain dict of lists."""
     try:
         return {k: list(vs) for k, vs in md.lists()}
     except Exception:
@@ -70,6 +76,7 @@ def multidict_to_dict(md) -> Dict[str, List[str]]:
 
 
 def files_summary(req: Request) -> List[Dict[str, Any]]:
+    """Return a summary of uploaded files from a Flask request."""
     items: List[Dict[str, Any]] = []
     for name, storage in req.files.items():
         try:
@@ -92,6 +99,7 @@ def files_summary(req: Request) -> List[Dict[str, Any]]:
 
 
 def _capture_request_details(req: Request, request_id: str) -> Dict[str, Any]:
+    """Collect a structured snapshot of request information for logging."""
     # Note: access request inside request context
     hdrs = {k: v for k, v in req.headers.items()}
     redacted_headers = redact_headers(hdrs)
@@ -118,9 +126,7 @@ def _capture_request_details(req: Request, request_id: str) -> Dict[str, Any]:
 
 
 def log_request(req: Request) -> str:
-    """
-    Pretty-print a Flask request using Rich. Returns the generated request id.
-    """
+    """Pretty-print a Flask request using Rich and return the request id."""
     request_id = uuid.uuid4().hex[:8]
     details = _capture_request_details(req, request_id)
 
@@ -164,6 +170,7 @@ def log_request(req: Request) -> str:
         console.rule(f"Messages ({len(messages)})")
 
         def render_content(content: Any) -> str:
+            """Render a message content value into readable text for logs."""
             # Show content with actual newlines
             if content is None:
                 return ""
@@ -217,8 +224,8 @@ def log_request(req: Request) -> str:
 
 
 def _clean_payload(obj: Any) -> Any:
-    """
-    Default cleaning to reduce noisy fields in logs.
+    """Default cleaning to reduce noisy fields in logs.
+
     - If obj is a dict, remove top-level 'tools'
     - If it contains a nested 'response' dict, also remove its 'tools'
     Returns a shallow-cleaned copy when applicable; otherwise returns the input unchanged.
@@ -238,8 +245,8 @@ def _clean_payload(obj: Any) -> Any:
 
 
 def log_event(ev: SSEEvent) -> None:
-    """
-    Pretty-print one SSE event using Rich.
+    """Pretty-print one SSE event using Rich.
+
     - Title reflects whether the event had an 'event' name and its index
     - If payload parses as JSON (ev.json), it is cleaned and printed as JSON; otherwise raw text is printed
     """
