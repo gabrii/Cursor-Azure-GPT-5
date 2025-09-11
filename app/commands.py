@@ -31,7 +31,7 @@ def test(coverage, filter):
 
     args = [TEST_PATH, "--verbose"]
     if coverage:
-        args.append("--cov=componses")
+        args.append("--cov=app")
         args.append("--cov-report=html")
         args.append("--cov-report=term")
     if filter:

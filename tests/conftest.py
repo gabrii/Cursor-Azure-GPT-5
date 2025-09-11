@@ -5,7 +5,7 @@ import logging
 import pytest
 from webtest import TestApp
 
-from componses.app import create_app
+from app import create_app
 
 
 @pytest.fixture
