@@ -32,6 +32,8 @@ def test(coverage, filter):
     args = [TEST_PATH, "--verbose"]
     if coverage:
         args.append("--cov=componses")
+        args.append("--cov-report=html")
+        args.append("--cov-report=term")
     if filter:
         args.extend(["-k", filter])
     rv = pytest.main(args=args)
