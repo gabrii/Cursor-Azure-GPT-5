@@ -6,6 +6,7 @@ import sys
 from flask import Flask
 
 from . import commands
+from .blueprint import blueprint
 
 
 def create_app(config_object="app.settings"):
@@ -16,8 +17,15 @@ def create_app(config_object="app.settings"):
     app = Flask(__name__.split(".")[0])
     app.config.from_object(config_object)
     register_commands(app)
+    register_blueprints(app)
     configure_logger(app)
     return app
+
+
+def register_blueprints(app):
+    """Register Flask blueprints."""
+    app.register_blueprint(blueprint)
+    return None
 
 
 def register_commands(app):

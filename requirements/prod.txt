@@ -4,6 +4,13 @@
 click>=7.0
 Flask==3.1.2
 
+# Logging
+rich==14.1.0
+loguru==0.7.3
+
+# Requests
+requests==2.32.5
+
 # Deployment
 gevent==25.8.2
 gunicorn>=19.9.0
