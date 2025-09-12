@@ -209,12 +209,12 @@ class RequestAdapter:
             payload = {}
 
         # Determine target model: prefer env AZURE_MODEL/AZURE_DEPLOYMENT
-        env_model = os.environ.get("AZURE_MODEL") or os.environ.get("AZURE_DEPLOYMENT")
+        env_model = os.environ.get("AZURE_MODEL", "gpt-5")
         inbound_model = payload.get("model") if isinstance(payload, dict) else None
         target_model = env_model
         if not target_model:
             self.adapter.early_response = Response(
-                "Missing model (set payload.model or AZURE_MODEL/AZURE_DEPLOYMENT)",
+                "Missing model (set payload.model or AZURE_MODEL)",
                 status=400,
                 mimetype="text/plain",
             )
@@ -264,7 +264,7 @@ class RequestAdapter:
         responses_body["stream"] = True
 
         # Extras (retain current behavior)
-        responses_body["reasoning"] = {"effort": "low", "summary": "detailed"}
+        responses_body["reasoning"] = {"effort": "high", "summary": "detailed"}
         responses_body["store"] = False
         responses_body["stream_options"] = {"include_obfuscation": False}
         responses_body["truncation"] = "auto"

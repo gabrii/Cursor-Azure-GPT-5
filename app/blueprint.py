@@ -20,14 +20,14 @@ blueprint = Blueprint("blueprint", __name__)
 # Pretty tracebacks for easier debugging
 install_rich_traceback(show_locals=False)
 
-# Choose backend CLASS based on env: OPENAI (default) or AZURE or NEW_AZURE
-adapter_choice = os.environ.get("BACKEND", "OPENAI").strip().upper()
-if adapter_choice == "AZURE":
-    adapter_class = AzureAdapter
-    logger.info("Using backend: AZURE")
-else:
+# Choose backend CLASS based on env: AZURE or OPENAI
+adapter_choice = os.environ.get("BACKEND", "AZURE").strip().upper()
+if adapter_choice == "OPENAI":
     adapter_class = OpenAIBackend
     logger.info("Using backend: OPENAI")
+else:
+    adapter_class = AzureAdapter
+    logger.info("Using backend: AZURE")
 
 
 # Configure Loguru to print colorful logs to stdout
