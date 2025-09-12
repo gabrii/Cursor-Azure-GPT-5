@@ -1,3 +1,5 @@
+"""OpenAI backend implementation and helpers for proxying to the OpenAI API."""
+
 import json
 import os
 import time
@@ -33,6 +35,7 @@ HOP_BY_HOP_HEADERS = {
 
 
 def should_redact() -> bool:
+    """Return True if sensitive values should be redacted in logs."""
     return os.environ.get("LOG_REDACT", "true").strip().lower() not in {
         "0",
         "false",
@@ -41,6 +44,7 @@ def should_redact() -> bool:
 
 
 def redact_value(value: str) -> str:
+    """Mask a potentially sensitive value for safer logging."""
     if not value:
         return value
     if len(value) <= 8:
@@ -49,6 +53,7 @@ def redact_value(value: str) -> str:
 
 
 def redact_headers(headers: Dict[str, str]) -> Dict[str, str]:
+    """Return a copy of headers with sensitive values redacted when enabled."""
     if not should_redact():
         return dict(headers)
     out: Dict[str, str] = {}
@@ -63,6 +68,7 @@ def redact_headers(headers: Dict[str, str]) -> Dict[str, str]:
 def copy_request_headers(
     src: Request, *, override_auth: Optional[str]
 ) -> Dict[str, str]:
+    """Copy request headers, optionally overriding the Authorization header."""
     headers: Dict[str, str] = {k: v for k, v in src.headers.items()}
     headers.pop("Host", None)
     if override_auth is not None:
@@ -73,6 +79,7 @@ def copy_request_headers(
 def filter_response_headers(
     headers: Dict[str, str], *, streaming: bool
 ) -> Dict[str, str]:
+    """Filter hop-by-hop and incompatible headers for downstream responses."""
     out: Dict[str, str] = {}
     for k, v in headers.items():
         if k.lower() in HOP_BY_HOP_HEADERS:
@@ -84,20 +91,27 @@ def filter_response_headers(
 
 
 class Backend:
+    """Abstract backend interface for forwarding requests."""
+
     def forward(self, req: Request) -> Response:
+        """Forward a Flask request upstream and return a Flask Response."""
         raise NotImplementedError
 
 
 class OpenAIBackend(Backend):
+    """Concrete backend that proxies requests to the OpenAI API."""
+
     def __init__(
         self,
         base_url: str = "https://api.openai.com",
         session: Optional[requests.Session] = None,
     ) -> None:
+        """Initialize the backend with base URL and an HTTP session."""
         self.base_url = base_url.rstrip("/")
         self.session = session or requests.Session()
 
     def _build_url(self, req: Request) -> str:
+        """Build a full upstream URL from the request path and query string."""
         path = req.path or "/"
         url = f"{self.base_url}{path}"
         if req.query_string:
@@ -105,6 +119,7 @@ class OpenAIBackend(Backend):
         return url
 
     def _parse_json(self, req: Request, body: bytes) -> Optional[Any]:
+        """Parse a request body into JSON using Flask helpers with fallbacks."""
         if not body:
             return None
         try:
@@ -120,11 +135,13 @@ class OpenAIBackend(Backend):
 
     @staticmethod
     def _clean_json_for_log(payload: Any) -> Any:
+        """Return a simplified JSON object for logging purposes."""
         if isinstance(payload, dict):
             return {k: v for k, v in payload.items() if k not in {"messages", "tools"}}
         return payload
 
     def forward(self, req: Request) -> Response:
+        """Forward the Flask request to OpenAI and adapt the response back."""
         api_key = os.environ.get("OPENAI_API_KEY")
         if not api_key:
             return Response("Missing OPENAI_API_KEY", status=500, mimetype="text/plain")
@@ -140,7 +157,7 @@ class OpenAIBackend(Backend):
         override_auth = f"Bearer {api_key}"
         upstream_headers = copy_request_headers(req, override_auth=override_auth)
 
-        logger.info("OpenAI forward → {} {} stream={}", method, url, is_stream)
+        logger.info("OpenAI forward → {} {} stream=\n{}", method, url, is_stream)
         console.print(Panel.fit("Upstream Request Headers (OpenAI)"))
         console.print(redact_headers(upstream_headers))
         if payload is not None:
@@ -178,7 +195,7 @@ class OpenAIBackend(Backend):
         if is_stream:
 
             def generate() -> Iterable[bytes]:
-                nonlocal resp
+                """Pass through upstream SSE bytes while logging parsed events."""
                 decoder = SSEDecoder()
                 try:
                     for chunk in resp.iter_content(chunk_size=8192):

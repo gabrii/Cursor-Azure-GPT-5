@@ -219,7 +219,6 @@ class ResponseAdapter:
         """Adapt an upstream Azure streaming response into SSE for Flask."""
 
         def generate() -> Iterable[bytes]:
-            nonlocal upstream_resp
             # Generate once per stream
             self._chat_completion_id = self._create_chat_completion_id()
             # Initialize per-stream state on the instance

@@ -6,16 +6,15 @@ forwards incoming HTTP requests to the configured backend implementation.
 
 import os
 import sys
-from typing import List
 
-from flask import Blueprint, Flask, jsonify, request
+from flask import Blueprint, jsonify, request
 from loguru import logger
 from rich.traceback import install as install_rich_traceback
 
 from .azure.adapter import AzureAdapter
 from .backend_azure import AzureBackend
 from .backend_openai import OpenAIBackend
-from .common.logging import log_request, should_redact
+from .common.logging import log_request
 
 blueprint = Blueprint("blueprint", __name__)
 

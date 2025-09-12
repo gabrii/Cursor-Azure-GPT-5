@@ -1,3 +1,5 @@
+"""Azure backend implementation and helpers for proxying to Azure Responses API."""
+
 import json
 import os
 import random
@@ -37,6 +39,7 @@ HOP_BY_HOP_HEADERS = {
 
 
 def should_redact() -> bool:
+    """Return True if sensitive values should be redacted in logs."""
     return os.environ.get("LOG_REDACT", "true").strip().lower() not in {
         "0",
         "false",
@@ -45,6 +48,7 @@ def should_redact() -> bool:
 
 
 def redact_value(value: str) -> str:
+    """Mask a potentially sensitive value for safer logging."""
     if not value:
         return value
     if len(value) <= 8:
@@ -53,6 +57,7 @@ def redact_value(value: str) -> str:
 
 
 def redact_headers(headers: Dict[str, str]) -> Dict[str, str]:
+    """Return a copy of headers with sensitive values redacted when enabled."""
     if not should_redact():
         return dict(headers)
     out: Dict[str, str] = {}
@@ -65,6 +70,7 @@ def redact_headers(headers: Dict[str, str]) -> Dict[str, str]:
 
 
 def copy_request_headers_for_azure(src: Request, *, api_key: str) -> Dict[str, str]:
+    """Copy request headers and set Azure api-key header for upstream call."""
     headers: Dict[str, str] = {k: v for k, v in src.headers.items()}
     headers.pop("Host", None)
     # Azure prefers api-key header
@@ -76,6 +82,7 @@ def copy_request_headers_for_azure(src: Request, *, api_key: str) -> Dict[str, s
 def filter_response_headers(
     headers: Dict[str, str], *, streaming: bool
 ) -> Dict[str, str]:
+    """Filter hop-by-hop and incompatible headers for downstream responses."""
     out: Dict[str, str] = {}
     for k, v in headers.items():
         if k.lower() in HOP_BY_HOP_HEADERS:
@@ -87,6 +94,7 @@ def filter_response_headers(
 
 
 def parse_json_body(req: Request, body: bytes) -> Optional[Any]:
+    """Parse a request body into JSON using Flask helpers with fallbacks."""
     if not body:
         return None
     try:
@@ -102,12 +110,14 @@ def parse_json_body(req: Request, body: bytes) -> Optional[Any]:
 
 
 def create_chat_completion_id() -> str:
+    """Return a new pseudo-random chat completion id string."""
     return f"chatcmpl-{''.join(random.choices('ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789', k=24))}"
 
 
 def messages_to_responses_input_and_instructions(
     messages: List[Dict[str, Any]],
 ) -> Dict[str, Any]:
+    """Map OpenAI-style messages to Azure Responses input and instructions."""
     instructions_parts: List[str] = []
     input_items: List[Dict[str, Any]] = []
 
@@ -178,12 +188,14 @@ def messages_to_responses_input_and_instructions(
 
 
 def clean_json_for_log(payload: Any) -> Any:
+    """Return a simplified JSON object for logging purposes."""
     if isinstance(payload, dict):
         return {k: v for k, v in payload.items() if k not in {"messages", "tools"}}
     return payload
 
 
 def transform_tools_for_responses(tools: Any) -> Any:
+    """Transform OpenAI tools spec into Azure Responses tool definitions."""
     if not isinstance(tools, list):
         return tools
     out: List[Dict[str, Any]] = []
@@ -206,6 +218,7 @@ def transform_tools_for_responses(tools: Any) -> Any:
 
 
 def transform_tool_choice(tool_choice: Any) -> Any:
+    """Transform OpenAI-style tool_choice into Azure Responses equivalent."""
     if tool_choice in (None, "auto", "none"):
         return tool_choice
     if isinstance(tool_choice, dict):
@@ -219,6 +232,7 @@ def transform_tool_choice(tool_choice: Any) -> Any:
 
 
 def wrap_data(data: str) -> bytes:
+    """Encode a line of SSE data bytes (legacy helper)."""
     # Legacy helper retained for compatibility; unused in mapped streaming
     return b"data: " + data.encode("utf-8") + b"\n\n"
 
@@ -226,6 +240,7 @@ def wrap_data(data: str) -> bytes:
 def build_completion_chunk(
     content: Optional[str] = None, chat_completion_id: Optional[str] = None
 ) -> Dict[str, Any]:
+    """Build a Chat Completions delta chunk dict for text content."""
     obj = {
         "id": chat_completion_id,
         "object": "chat.completion.chunk",
@@ -254,6 +269,7 @@ def build_completion_chunk(
 def build_function_call_start(
     name: str, arguments: str, chat_completion_id: str, call_id: str
 ) -> Dict[str, Any]:
+    """Build the initial function call delta chunk with name and arguments."""
     obj = {
         "id": chat_completion_id,
         "object": "chat.completion.chunk",
@@ -287,6 +303,7 @@ def build_function_call_start(
 
 
 def build_function_call_delta(delta: str, chat_completion_id: str) -> Dict[str, Any]:
+    """Build a function call arguments delta chunk."""
     obj = {
         "id": chat_completion_id,
         "object": "chat.completion.chunk",
@@ -313,6 +330,7 @@ def build_function_call_delta(delta: str, chat_completion_id: str) -> Dict[str, 
 def build_finish_reason_chunk(
     finish_reason: str, chat_completion_id: str
 ) -> Dict[str, Any]:
+    """Build the final chunk that carries the finish_reason value."""
     obj = {
         "id": chat_completion_id,
         "object": "chat.completion.chunk",
@@ -330,14 +348,20 @@ def build_finish_reason_chunk(
 
 
 class Backend:
+    """Abstract backend interface for forwarding requests."""
+
     def forward(self, req: Request) -> Response:
+        """Forward a Flask request upstream and return a Flask Response."""
         raise NotImplementedError
 
 
 class AzureBackend(Backend):
+    """Concrete backend that proxies requests to Azure's Responses API."""
+
     def __init__(
         self, base_url: Optional[str] = None, session: Optional[requests.Session] = None
     ) -> None:
+        """Initialize the backend with base URL and an HTTP session."""
         self.base_url = (
             base_url
             or os.environ.get("AZURE_BASE_URL")
@@ -347,9 +371,11 @@ class AzureBackend(Backend):
         self.session = session or requests.Session()
 
     def _build_responses_url(self) -> str:
+        """Return the Azure Responses API URL with version query parameter."""
         return f"{self.base_url}/openai/responses?api-version={self.api_version}"
 
     def forward(self, req: Request) -> Response:
+        """Forward the Flask request to Azure and adapt the response back."""
         api_key = os.environ.get("AZURE_API_KEY")
         if not api_key:
             return Response("Missing AZURE_API_KEY", status=500, mimetype="text/plain")
@@ -360,9 +386,6 @@ class AzureBackend(Backend):
         path = req.path or "/"
 
         # Determine target model: prefer payload.model, then env AZURE_MODEL/AZURE_DEPLOYMENT
-        model = None
-        if isinstance(payload, dict):
-            model = payload.get("model")
         env_model = os.environ.get("AZURE_MODEL") or os.environ.get("AZURE_DEPLOYMENT")
         target_model = env_model
         if not target_model:
@@ -436,7 +459,7 @@ class AzureBackend(Backend):
             url = self._build_responses_url()
 
             logger.info(
-                "Azure forward (mapped to Responses) → POST {} stream={}",
+                "Azure forward (mapped to Responses) → POST {} stream=\n{}",
                 url,
                 is_stream,
             )
@@ -493,7 +516,7 @@ class AzureBackend(Backend):
             if is_stream:
 
                 def generate() -> Iterable[bytes]:
-                    nonlocal resp
+                    """SSE generator mapping Azure events into OpenAI chunk JSON."""
                     chat_completion_id = create_chat_completion_id()
                     # Becomes true when the model starts reasoning, and outputs <think> on the first reasoning token
                     started_thinking = False
@@ -506,6 +529,7 @@ class AzureBackend(Backend):
                     called_function = False
 
                     def gen_dicts() -> Iterable[Dict[str, Any]]:
+                        """Yield downstream chunk dicts for each relevant SSE event."""
                         nonlocal started_thinking, thinking, called_function
                         try:
                             for ev in sse_to_events(resp.iter_content(chunk_size=8192)):
@@ -632,7 +656,7 @@ class AzureBackend(Backend):
             url = self._build_responses_url()
             is_stream = bool(payload.get("stream"))
             logger.info(
-                "Azure forward (direct Responses) → POST {} stream={}", url, is_stream
+                "Azure forward (direct Responses) → POST {} stream=\n{}", url, is_stream
             )
             console.print(Panel.fit("Upstream Request Headers (Azure)"))
             console.print_json(data=redact_headers(upstream_headers))
@@ -658,7 +682,7 @@ class AzureBackend(Backend):
             if is_stream:
 
                 def generate() -> Iterable[bytes]:
-                    nonlocal resp
+                    """Pass through upstream SSE bytes, ensuring cleanup on close."""
                     try:
                         for chunk in resp.iter_content(chunk_size=8192):
                             if not chunk:
