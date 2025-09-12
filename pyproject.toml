@@ -1,2 +1,6 @@
 [tool.isort]
 profile = "black"
+
+[tool.coverage.run]
+source = ["app"]
+omit = ["tests/*", "autoapp.py"]
