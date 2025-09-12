@@ -10,4 +10,3 @@ class TestLoggingIn:
     def test_can_log_in_returns_200(self, testapp):
         """Test empty homepage."""
         testapp.get("/", status=405)
-        # assert res.status_code == 404

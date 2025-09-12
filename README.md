@@ -1,4 +1,4 @@
-# Componses
+# Cursor Azure GPT-5
 
 Adapter to use the Responses API through the older Completions API interface. Allows using reasoning models suchas GPT-5 with applications that only support the old completions interface.
 
