@@ -122,15 +122,15 @@ class OpenAIBackend(Backend):
         """Parse a request body into JSON using Flask helpers with fallbacks."""
         if not body:
             return None
-        try:
+        try:  # noqa
             data = req.get_json(silent=True, force=False)
             if data is not None:
                 return data
-        except Exception:
+        except Exception:  # noqa
             pass
-        try:
+        try:  # noqa
             return json.loads(body.decode(req.charset or "utf-8", errors="replace"))
-        except Exception:
+        except Exception:  # noqa
             return None
 
     @staticmethod
@@ -189,7 +189,7 @@ class OpenAIBackend(Backend):
                 err_json = resp.json()
                 console.print(Panel.fit(f"Upstream Error JSON ({resp.status_code})"))
                 console.print_json(data=err_json)
-            except Exception:
+            except Exception:  # noqa
                 pass
 
         if is_stream:
@@ -219,7 +219,7 @@ class OpenAIBackend(Backend):
                                 continue
                             log_event(ev)
                         resp.close()
-                    except Exception:
+                    except Exception:  # noqa
                         pass
 
             headers = filter_response_headers(dict(resp.headers), streaming=True)
@@ -231,7 +231,7 @@ class OpenAIBackend(Backend):
                 err_json = resp.json()
                 console.print(Panel.fit(f"Upstream Error JSON ({resp.status_code})"))
                 console.print_json(data=err_json)
-            except Exception:
+            except Exception:  # noqa
                 pass
         headers = filter_response_headers(dict(resp.headers), streaming=False)
         return Response(content, status=resp.status_code, headers=headers)
