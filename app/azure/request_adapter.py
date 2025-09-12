@@ -32,15 +32,12 @@ class RequestAdapter:
     def _parse_json_body(self, req: Request, body: bytes) -> Optional[Any]:
         if not body:
             return None
-        try:
-            data = req.get_json(silent=True, force=False)
-            if data is not None:
-                return data
-        except Exception:
-            pass
+        data = req.get_json(silent=True, force=False)
+        if data is not None:
+            return data
         try:
             return json.loads(body.decode(req.charset or "utf-8", errors="replace"))
-        except Exception:
+        except json.JSONDecodeError:
             return None
 
     def _copy_request_headers_for_azure(
@@ -75,10 +72,7 @@ class RequestAdapter:
                     else:
                         parts.append(str(it))
                 return "\n".join([p for p in parts if p])
-            try:
-                return json.dumps(c, ensure_ascii=False)
-            except Exception:
-                return str(c)
+            return json.dumps(c, ensure_ascii=False)
 
         for m in messages:
             role = m.get("role")

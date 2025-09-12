@@ -70,7 +70,7 @@ def multidict_to_dict(md) -> Dict[str, List[str]]:
     """Convert a werkzeug MultiDict-like object to a plain dict of lists."""
     try:
         return {k: list(vs) for k, vs in md.lists()}
-    except Exception:
+    except AttributeError:
         # Fallback for objects without .lists()
         return {k: [md.get(k)] for k in md.keys()}
 
@@ -79,22 +79,13 @@ def files_summary(req: Request) -> List[Dict[str, Any]]:
     """Return a summary of uploaded files from a Flask request."""
     items: List[Dict[str, Any]] = []
     for name, storage in req.files.items():
-        try:
-            items.append(
-                {
-                    "field": name,
-                    "filename": storage.filename,
-                    "content_type": storage.content_type,
-                }
-            )
-        except Exception:
-            items.append(
-                {
-                    "field": name,
-                    "filename": "<unavailable>",
-                    "content_type": "<unknown>",
-                }
-            )
+        items.append(
+            {
+                "field": name,
+                "filename": getattr(storage, "filename", "<unavailable>"),
+                "content_type": getattr(storage, "content_type", "<unknown>"),
+            }
+        )
     return items
 
 
@@ -175,10 +166,7 @@ def log_request(req: Request) -> str:
             if content is None:
                 return ""
             if isinstance(content, bytes):
-                try:
-                    return content.decode("utf-8", errors="replace")
-                except Exception:
-                    return str(content)
+                return content.decode("utf-8", errors="replace")
             if isinstance(content, str):
                 return content
             if isinstance(content, list):
@@ -196,10 +184,7 @@ def log_request(req: Request) -> str:
                         parts.append(str(it))
                 return "\n".join(p for p in parts if p is not None)
             # Fallback: pretty JSON
-            try:
-                return json.dumps(content, ensure_ascii=False, indent=2)
-            except Exception:
-                return str(content)
+            return json.dumps(content, ensure_ascii=False, indent=2)
 
         for idx, msg in enumerate(messages, start=1):
             role = ""

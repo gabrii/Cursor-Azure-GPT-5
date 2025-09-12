@@ -39,10 +39,7 @@ class SSEEvent:
 
         The end-of-stream sentinel is the literal string "[DONE]".
         """
-        try:
-            return self.data.strip() == "[DONE]"
-        except Exception:
-            return False
+        return self.data.strip() == "[DONE]"
 
     @property
     def json(self) -> Optional[Any]:
@@ -57,8 +54,8 @@ class SSEEvent:
                 val = None
             else:
                 try:
-                    val = json.loads(self.data)
-                except Exception:
+                    val = json.loads(text)
+                except json.JSONDecodeError:
                     val = None
             self._json_value = val
             self._json_cached = True
@@ -110,7 +107,7 @@ class SSEDecoder:
                     val = val[1:]
                 try:
                     retry = int(val.strip())
-                except Exception:
+                except ValueError:
                     retry = None
             elif line.startswith(b":"):
                 # Comment line, ignore

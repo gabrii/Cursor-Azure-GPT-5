@@ -1,6 +1,6 @@
 # Lint and Format After Edits
 
-After finishing any big code changes, and before yielding to the user, run:
+After finishing any big code changes, and before yielding to the user, run with your terminal tool the following comand:
 
 ```
 source .venv/bin/activate && flask lint
@@ -9,6 +9,8 @@ source .venv/bin/activate && flask lint
 This command will:
 - Run **black** to automatically format the codebase.
 - Run **flake8** to flag any remaining formatting or lint issues.
+
+You don't need to preface it with /bin/bash -c, nor add | cat at the end. Just run it as is.
 
 This ensures the codebase remains clean, consistent, and compliant with style guidelines after every edit.
 description:

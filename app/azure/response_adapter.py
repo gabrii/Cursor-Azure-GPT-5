@@ -255,10 +255,7 @@ class ResponseAdapter:
             try:
                 yield from chunks_to_sse(gen_dicts())
             finally:
-                try:
-                    upstream_resp.close()
-                except Exception:
-                    pass
+                upstream_resp.close()
 
         headers = self._filter_response_headers(
             dict(getattr(upstream_resp, "headers", {})), streaming=True

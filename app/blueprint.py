@@ -77,13 +77,5 @@ def catch_all(path: str):
     # Log the request details
     log_request(request)
     # Forward the request to selected backend and return its response
-    try:
-        backend = adapter_class()
-        return backend.forward(request)
-    except Exception as exc:
-        logger.exception("Backend forwarding failed: {}", exc)
-        return (
-            jsonify({"error": "backend_forward_failed", "message": str(exc)}),
-            502,
-            {"Content-Type": "application/json"},
-        )
+    backend = adapter_class()
+    return backend.forward(request)
