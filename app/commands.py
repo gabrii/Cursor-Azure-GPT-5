@@ -60,9 +60,8 @@ def lint(fix_imports, check):
     skip = [
         "requirements",
         "migrations",
-        "supervisord_programs",
+        "supervisord",
         "htmlcov",
-        "shell_scripts",
         "__pycache__",
     ]
     root_files = glob("*.py")
