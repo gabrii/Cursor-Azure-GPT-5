@@ -85,32 +85,34 @@ class SSEDecoder:
         ev_id: Optional[str] = None
         retry: Optional[int] = None
 
-        for l in lines:
-            if not l:
+        for line in lines:
+            if not line:
                 continue
-            if l.startswith(b"event:"):
+            if line.startswith(b"event:"):
                 ev_type = (
-                    l.split(b":", 1)[1].strip().decode(self.encoding, errors="replace")
+                    line.split(b":", 1)[1]
+                    .strip()
+                    .decode(self.encoding, errors="replace")
                 )
-            elif l.startswith(b"data:"):
-                part = l[5:]
+            elif line.startswith(b"data:"):
+                part = line[5:]
                 if part.startswith(b" "):
                     part = part[1:]
                 data_parts.append(part)
-            elif l.startswith(b"id:"):
-                val = l.split(b":", 1)[1]
+            elif line.startswith(b"id:"):
+                val = line.split(b":", 1)[1]
                 if val.startswith(b" "):
                     val = val[1:]
                 ev_id = val.decode(self.encoding, errors="replace")
-            elif l.startswith(b"retry:"):
-                val = l.split(b":", 1)[1]
+            elif line.startswith(b"retry:"):
+                val = line.split(b":", 1)[1]
                 if val.startswith(b" "):
                     val = val[1:]
                 try:
                     retry = int(val.strip())
                 except Exception:
                     retry = None
-            elif l.startswith(b":"):
+            elif line.startswith(b":"):
                 # Comment line, ignore
                 pass
 

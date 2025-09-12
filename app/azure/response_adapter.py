@@ -44,7 +44,7 @@ class ResponseAdapter:
     ) -> Dict[str, str]:
         """Filter hop-by-hop and incompatible headers for downstream responses."""
         # Minimal hop-by-hop headers list for downstream filtering
-        HOP_BY_HOP_HEADERS = {
+        hop_by_hop_headers = {
             "connection",
             "keep-alive",
             "proxy-authenticate",
@@ -56,7 +56,7 @@ class ResponseAdapter:
         }
         out: Dict[str, str] = {}
         for k, v in headers.items():
-            if k.lower() in HOP_BY_HOP_HEADERS:
+            if k.lower() in hop_by_hop_headers:
                 continue
             if streaming and k.lower() == "content-length":
                 continue

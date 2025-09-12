@@ -9,7 +9,6 @@ from typing import Any, Dict, Iterable, List, Optional
 import requests
 from flask import Request, Response
 from loguru import logger
-from rich import color
 from rich.panel import Panel
 
 from .common.logging import console, log_event
