@@ -234,15 +234,19 @@ class RequestAdapter:
         responses_body["stream"] = True
 
         reasoning_effort = inbound_model.replace("gpt-", "").lower()
-        if reasoning_effort not in {"high", "medium", "low"}:
+        if reasoning_effort not in {"high", "medium", "low", "minimal"}:
             raise ValueError(
-                "Model name must be either gpt-high, gpt-medium, or gpt-low"
+                "Model name must be either gpt-high, gpt-medium, gpt-low, or gpt-minimal"
             )
 
         responses_body["reasoning"] = {
             "effort": reasoning_effort,
-            "summary": settings["AZURE_SUMMARY_LEVEL"],
         }
+
+        # Concise is not supported by GPT-5,
+        # but allowing it for now to be able to test it on other models
+        if settings["AZURE_SUMMARY_LEVEL"] in {"auto", "detailed", "concise"}:
+            responses_body["reasoning"]["summary"] = settings["AZURE_SUMMARY_LEVEL"]
 
         responses_body["store"] = False
         responses_body["stream_options"] = {"include_obfuscation": False}

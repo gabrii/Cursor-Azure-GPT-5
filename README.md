@@ -37,27 +37,27 @@ If you prefer to deploy the service (for example, to allow multiple members of y
 
 ### 1. Service configuration
 
-Make a copy of the file `.env.example` as `.env` and update the following flags:
+Make a copy of the file `.env.example` as `.env` and update the following flags as needed:
 
-| Flag               | Description                                                                                          | Default     |
-| ------------------ | ---------------------------------------------------------------------------------------------------- | ----------- |
-| `AZURE_BASE_URL`   | Your Azure OpenAI endpoint base URL (no trailing slash), e.g. `https://<resource>.openai.azure.com`. | required    |
-| `AZURE_API_KEY`    | Azure OpenAI API key.                                                                                | required    |
-| `AZURE_DEPLOYMENT` | Name of the Azure model deployment to use.                                                           | `gpt-5`     |
-| `SERVICE_API_KEY`  | Arbitrary API key to protect your service. Set it to a random string.                                | `change-me` |
+| Flag                  | Description                                                                                                                    | Default     |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ----------- |
+| `AZURE_BASE_URL`      | Your Azure OpenAI endpoint base URL (no trailing slash), e.g. `https://<resource>.openai.azure.com`.                           | required    |
+| `AZURE_API_KEY`       | Azure OpenAI API key.                                                                                                          | required    |
+| `AZURE_DEPLOYMENT`    | Name of the Azure model deployment to use.                                                                                     | `gpt-5`     |
+| `SERVICE_API_KEY`     | Arbitrary API key to protect your service. Set it to a random string.                                                          | `change-me` |
+| `AZURE_SUMMARY_LEVEL` | Set to `none` to disable summaries. You might have to disable them if your organization hasn't been approved for this feature. | `detailed`  |
 
 Alternatively, you can pass them through the environment where you run the application.
 
 <details>
 <summary>Optional Configuration</summary>
 
-| Flag                  | Description                                                            | Default              |
-| --------------------- | ---------------------------------------------------------------------- | -------------------- |
-| `AZURE_API_VERSION`   | Azure OpenAI Responses API version to call.                            | `2025-04-01-preview` |
-| `AZURE_SUMMARY_LEVEL` | Reasoning summary level for responses.                                 | `detailed`           |
-| `AZURE_TRUNCATION`    | Truncation strategy for long inputs.                                   | `auto`               |
-| `FLASK_ENV`           | Flask environment. Use `development` for dev or `production` for prod. | `production`         |
-| `RECORD_TRAFFIC`      | Toggle writing request/response traffic to `recordings/`               | `off`                |
+| Flag                | Description                                                            | Default              |
+| ------------------- | ---------------------------------------------------------------------- | -------------------- |
+| `AZURE_API_VERSION` | Azure OpenAI Responses API version to call.                            | `2025-04-01-preview` |
+| `AZURE_TRUNCATION`  | Truncation strategy for long inputs.                                   | `auto`               |
+| `FLASK_ENV`         | Flask environment. Use `development` for dev or `production` for prod. | `production`         |
+| `RECORD_TRAFFIC`    | Toggle writing request/response traffic to `recordings/`               | `off`                |
 
 </details>
 
@@ -98,7 +98,7 @@ In addition to updating the OpenAI Base URL, you need to:
 
 2. Ensure the toggles for both options are **on**, as shown in the previous image.
 
-3. Add the custom models called exactly `gpt-high`, `gpt-medium`, and `gpt-low`, as shown in the previous image. You don't need to remove other models.
+3. Add the custom models called exactly `gpt-high`, `gpt-medium`, and `gpt-low`, as shown in the previous image. You can also create `gpt-minimal` for minimal reasoning effort. You don't need to remove other models.
 
 <details>
 <summary>Additional steps if you face this error:
