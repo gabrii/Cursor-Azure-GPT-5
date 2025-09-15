@@ -89,11 +89,15 @@ class AzureAdapter:
             "azure_response": resp_content,
             "request_body": body,
         }
-        error_message = f"""\nCheck "azure_response" for the error details:
-\t{json.dumps(report, indent=4).replace("\n", "\n\t")}
-If the issue persists, report it to:
-\thttps://github.com/gabrii/Cursor-Azure-GPT-5/issues
-Including all the details above"""
+        # Precompute pretty JSON to avoid backslashes inside f-string expressions
+        report_pretty = json.dumps(report, indent=4).replace("\n", "\n\t")
+        error_message = (
+            "\nCheck \"azure_response\" for the error details:\n"
+            f"\t{report_pretty}\n"
+            "If the issue persists, report it to:\n"
+            "\thttps://github.com/gabrii/Cursor-Azure-GPT-5/issues\n"
+            "Including all the details above"
+        )
         console.rule(f"[red]Request failed with status code {resp.status_code}[/red]")
         console.print(error_message)
         return Response(
