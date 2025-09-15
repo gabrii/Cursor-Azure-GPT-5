@@ -98,7 +98,7 @@ In addition to updating the OpenAI Base URL, you need to:
 
 2. Ensure the toggles for both options are **on**, as shown in the previous image.
 
-3. Add the custom models called exactly `gpt-high`, `gpt-medium`, and `gpt-low`, as shown in the previous image. You don't need to remove other models.
+3. Add the custom models called exactly `gpt-high`, `gpt-medium`, and `gpt-low`, as shown in the previous image. You can also create `gpt-minimal` for minimal reasoning effort. You don't need to remove other models.
 
 <details>
 <summary>Additional steps if you face this error:

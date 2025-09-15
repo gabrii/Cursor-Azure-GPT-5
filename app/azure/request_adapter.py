@@ -234,9 +234,9 @@ class RequestAdapter:
         responses_body["stream"] = True
 
         reasoning_effort = inbound_model.replace("gpt-", "").lower()
-        if reasoning_effort not in {"high", "medium", "low"}:
+        if reasoning_effort not in {"high", "medium", "low", "minimal"}:
             raise ValueError(
-                "Model name must be either gpt-high, gpt-medium, or gpt-low"
+                "Model name must be either gpt-high, gpt-medium, gpt-low, or gpt-minimal"
             )
 
         responses_body["reasoning"] = {
