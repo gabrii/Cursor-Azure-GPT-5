@@ -241,8 +241,12 @@ class RequestAdapter:
 
         responses_body["reasoning"] = {
             "effort": reasoning_effort,
-            "summary": settings["AZURE_SUMMARY_LEVEL"],
         }
+
+        # Concise is not supported by GPT-5,
+        # but allowing it for now to be able to test it on other models
+        if settings["AZURE_SUMMARY_LEVEL"] in {"auto", "detailed", "concise"}:
+            responses_body["reasoning"]["summary"] = settings["AZURE_SUMMARY_LEVEL"]
 
         responses_body["store"] = False
         responses_body["stream_options"] = {"include_obfuscation": False}
