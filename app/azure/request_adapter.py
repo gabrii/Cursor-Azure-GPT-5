@@ -28,7 +28,9 @@ class RequestAdapter:
         self.adapter = adapter  # AzureAdapter instance for shared config/env
 
     # ---- Helpers (kept local to minimize cross-module coupling) ----
-    def _normalize_call_id(self, original: Optional[str], mapping: Dict[str, str]) -> Optional[str]:
+    def _normalize_call_id(
+        self, original: Optional[str], mapping: Dict[str, str]
+    ) -> Optional[str]:
         """Return a <=64 char stable call_id.
 
         - Azure Responses API limits function call ids to 64 chars.
@@ -44,9 +46,11 @@ class RequestAdapter:
         if original in mapping:
             return mapping[original]
         import hashlib
+
         norm = hashlib.sha256(original.encode("utf-8")).hexdigest()  # 64 hex chars
         mapping[original] = norm
         return norm
+
     def _parse_json_body(self, req: Request, body: bytes) -> Optional[Any]:
         if not body:
             return None
@@ -107,7 +111,9 @@ class RequestAdapter:
             if role == "tool":
                 # Map tool outputs back to a normalized call id
                 original_tool_call_id = m.get("tool_call_id")
-                norm_call_id = self._normalize_call_id(original_tool_call_id, call_id_map)
+                norm_call_id = self._normalize_call_id(
+                    original_tool_call_id, call_id_map
+                )
                 item = {
                     "type": "function_call_output",
                     "output": content_to_text(c),

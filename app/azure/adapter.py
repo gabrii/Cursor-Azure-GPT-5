@@ -92,7 +92,7 @@ class AzureAdapter:
         # Precompute pretty JSON to avoid backslashes inside f-string expressions
         report_pretty = json.dumps(report, indent=4).replace("\n", "\n\t")
         error_message = (
-            "\nCheck \"azure_response\" for the error details:\n"
+            '\nCheck "azure_response" for the error details:\n'
             f"\t{report_pretty}\n"
             "If the issue persists, report it to:\n"
             "\thttps://github.com/gabrii/Cursor-Azure-GPT-5/issues\n"
