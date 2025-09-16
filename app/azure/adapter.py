@@ -86,6 +86,7 @@ class AzureAdapter:
             "endpoint": re.sub(
                 r"(//.)(.*?)(.\.)", "\\1***\\3", request_kwargs.get("url")
             ),
+            "azure_status_code": resp.status_code,
             "azure_response": resp_content,
             "request_body": body,
         }
@@ -102,5 +103,5 @@ class AzureAdapter:
         console.print(error_message)
         return Response(
             error_message,
-            status=resp.status_code,
+            status=resp.status_code if resp.status_code != 401 else 400,
         )
