@@ -11,7 +11,7 @@ import time
 from string import ascii_letters, digits
 from typing import Any, Dict, Iterable, Optional
 
-from flask import Response
+from flask import Response, stream_with_context
 
 from ..common.sse import chunks_to_sse, sse_to_events
 
@@ -218,6 +218,7 @@ class ResponseAdapter:
     def adapt(self, upstream_resp: Any) -> Response:
         """Adapt an upstream Azure streaming response into SSE for Flask."""
 
+        @stream_with_context
         def generate() -> Iterable[bytes]:
             # Generate once per stream
             self._chat_completion_id = self._create_chat_completion_id()
