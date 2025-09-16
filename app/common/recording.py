@@ -1,12 +1,14 @@
 """Lightweight recording helpers for debugging request/response flows.
 
-Artifacts are stored under the project-level ``recordings/`` folder using a
-monotonically increasing numeric prefix so related request/response files are
-easy to correlate.
+Artifacts are stored under the project-level ``recordings/`` folder. Each
+request/response lifecycle is grouped in a subdirectory named by an increasing
+numeric index, e.g.
+``recordings/9/downstream_request.json``.
 """
 
 import json
 import os
+import re
 from functools import wraps
 from typing import Any, Dict
 
@@ -17,16 +19,26 @@ RECORDINGS_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "recordings
 # Private, module-level counter tracking the latest recording index.
 __LAST_RECORDING_INDEX = 0
 
-# Initialize the counter based on existing files in the recordings directory so
-# that subsequent runs continue incrementing from the maximum observed index.
-files = os.listdir(RECORDINGS_DIR)
-for file in files:
+# Initialize the counter based on existing subdirectories in the recordings
+# directory so that subsequent runs continue incrementing from the maximum
+# observed index.
+try:
+    entries = os.listdir(RECORDINGS_DIR)
+except FileNotFoundError:
+    # Create the recordings directory lazily when first used
+    os.makedirs(RECORDINGS_DIR, exist_ok=True)
+    entries = []
+
+for entry in entries:
+    entry_path = os.path.join(RECORDINGS_DIR, entry)
+    if not os.path.isdir(entry_path):
+        continue
     try:
-        recording_index = int(file.split("_")[0])
+        recording_index = int(entry)
         if recording_index > __LAST_RECORDING_INDEX:
             __LAST_RECORDING_INDEX = recording_index
-    except (ValueError, IndexError):
-        # Ignore unrelated files that do not follow the "<index>_<name>.*" pattern
+    except ValueError:
+        # Ignore unrelated folders that do not use a numeric name
         pass
 
 
@@ -53,21 +65,50 @@ def increment_last_recording() -> None:
     __LAST_RECORDING_INDEX += 1
 
 
+def anonimize(data: str) -> str:
+    """Removes sensitive data from recordings."""
+    closing = r'(.*?[^\\](?:\\\\)?)(")'
+    patterns = (
+        # Content
+        r'("role": ?"[a-z]+",\s+"content": ?")',  # Completions
+        r'("instructions": ?")',  # Responses
+        r'("text": ?")',  # Responses
+        r'("role": ?"[a-z]+",\s+"delta": ?")',  # Both
+        # User identifiers
+        r'("user": ?")',  # Completions
+        r'("prompt_cache_key": ?")',  # Responses
+        # Function calls
+        r'("name": ?")',  # Both
+        r'("description": ?")',  # Both
+    )
+    for pattern in patterns:
+        data = re.sub(pattern + closing, r"\1REDACTED\3", data)
+
+    return data
+
+
+def _recording_file_path(name: str, ext: str) -> str:
+    dir_path = os.path.join(RECORDINGS_DIR, str(__LAST_RECORDING_INDEX))
+    os.makedirs(dir_path, exist_ok=True)
+    return os.path.join(dir_path, f"{name}.{ext}")
+
+
 @config_bypass
 def record_payload(payload: Dict[str, Any], name: str) -> None:
-    """Write a JSON payload for the current recording index."""
+    """Write a JSON payload under the current recording index subdirectory."""
 
-    file_name = f"{__LAST_RECORDING_INDEX}_{name}.json"
-    file_path = os.path.join(RECORDINGS_DIR, file_name)
+    file_path = _recording_file_path(name, "json")
     with open(file_path, "w") as f:
-        json.dump(payload, f, indent=2)
+        data = json.dumps(payload, indent=2)
+        data = anonimize(data)
+        f.write(data)
 
 
 @config_bypass
 def record_sse(sse: bytes, name: str) -> None:
-    """Write raw SSE bytes for the current recording index."""
+    """Write raw SSE bytes under the current recording index subdirectory."""
 
-    file_name = f"{__LAST_RECORDING_INDEX}_{name}.sse"
-    file_path = os.path.join(RECORDINGS_DIR, file_name)
+    file_path = _recording_file_path(name, "sse")
     with open(file_path, "wb") as f:
+        sse = anonimize(sse.decode("utf-8")).encode("utf-8")
         f.write(sse)
