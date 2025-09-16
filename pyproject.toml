@@ -9,3 +9,8 @@ omit = ["tests/*", "autoapp.py"]
 ignore = ["D401", "D202", "E226", "E302", "E41", "W503", "E203"]
 max-line-length = 120
 max-complexity = 30
+
+[tool.pytest.ini_options]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+]
