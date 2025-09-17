@@ -6,7 +6,8 @@ See: http://webtest.readthedocs.org/
 import json
 import os
 import re
-from typing import Any
+from io import BytesIO
+from typing import Any, Dict
 
 from requests_mock import MockerCore
 from webtest import TestApp
@@ -20,28 +21,53 @@ class ReplyBase:
     """
 
     # The subdirectory under tests/recordings/ to load fixtures from
-    recording: str
+    recording: str = "default_recording"
+    upstream_status_code: int = 200
+    expected_downstream_status_code: int = 200
 
     # Endpoint to mock for the upstream request
     UPSTREAM_URL = "https://test-resource.openai.azure.com/openai/responses?api-version=2025-04-01-preview"
 
-    def _get_request_path(self, kind: str) -> str:
-        """Return path for a recorded request JSON of given kind.
+    def _get_recording_path(self, file_name: str) -> str:
+        return os.path.join("tests", "recordings", self.recording, file_name)
 
-        Example: kind="upstream" -> tests/recordings/<recording>/upstream_request.json
-        """
-        return os.path.join(
-            "tests", "recordings", self.recording, f"{kind}_request.json"
-        )
+    def _get_request_body(self, kind: str) -> str:
+        request_path = self._get_recording_path(f"{kind}_request.json")
+        with open(request_path, "r") as f:
+            return f.read()
 
-    def _get_response_path(self, kind: str) -> str:
-        """Return path for a recorded response SSE of given kind.
+    def _get_response_body(self, kind: str) -> bytes:
+        response_path = self._get_recording_path(f"{kind}_response.sse")
+        with open(response_path, "rb") as f:
+            return f.read()
 
-        Example: kind="downstream" -> tests/recordings/<recording>/downstream_response.sse
-        """
-        return os.path.join(
-            "tests", "recordings", self.recording, f"{kind}_response.sse"
-        )
+    @property
+    def expected_upstream_request_body(self) -> str:
+        """Return recorded upstream request JSON string."""
+        return self._get_request_body("upstream")
+
+    @property
+    def downstream_request_body(self) -> str:
+        """Return recorded downstream request JSON string."""
+        return self._get_request_body("downstream")
+
+    @property
+    def upstream_response_body(self) -> bytes:
+        """Return recorded upstream response SSE bytes."""
+        return self._get_response_body("upstream")
+
+    @property
+    def expected_downstream_response_body(self) -> bytes:
+        """Return recorded downstream response SSE bytes."""
+        return self._get_response_body("downstream")
+
+    @property
+    def downstream_request_headers(self) -> Dict[str, str]:
+        """Return headers for the downstream request."""
+        return {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer test-service-api-key",
+        }
 
     def _normalize_response(self, sse_response: bytes) -> str:
         """Normalize the response id and created timestamp (use re.sub)."""
@@ -52,55 +78,43 @@ class ReplyBase:
         text = re.sub(r'"created":(\d+)', '"created":1234567890', text)
         return text
 
-    def _mock_upstream(self, requests_mock: MockerCore) -> Any:
+    def mock_upstream(self, requests_mock: MockerCore) -> Any:
         """Mock upstream request with recorded SSE upstream response.
 
         Returns the mock object so callers can inspect ``last_request``.
         """
-        upstream_response_path = self._get_response_path("upstream")
         return requests_mock.post(
             self.UPSTREAM_URL,
-            body=open(
-                upstream_response_path, "rb"
-            ),  # Yes, we need to pass the file object here, not the .read() result
+            status_code=self.upstream_status_code,
+            body=BytesIO(self.upstream_response_body),
         )
 
-    def _perform_downstream_request(self, testapp: TestApp):
+    def perform_downstream_request(self, testapp: TestApp):
         """Perform recorded downstream request and return the response."""
-        downstream_request_path = self._get_request_path("downstream")
-        with open(downstream_request_path, "r") as f:
-            downstream_request = f.read()
+
         return testapp.post(
             "/chat/completions",
-            status=200,
-            params=downstream_request,
-            headers={
-                "Content-Type": "application/json",
-                "Authorization": "Bearer test-service-api-key",
-            },
+            status=self.expected_downstream_status_code,
+            params=self.downstream_request_body,
+            headers=self.downstream_request_headers,
         )
 
-    def _verify_upstream_request(self, mock: Any) -> None:
-        """Verify upstream request matches the recorded upstream request."""
-        upstream_request_path = self._get_request_path("upstream")
-        with open(upstream_request_path, "r") as f:
-            upstream_request = json.load(f)
-        assert mock.last_request.json() == upstream_request
+    def assert_upstream_request(self, mock: Any) -> None:
+        """Assert upstream request matches the recorded upstream request."""
+        expected_upstream_request_json = json.loads(self.expected_upstream_request_body)
+        assert mock.last_request.json() == expected_upstream_request_json
 
-    def _verify_downstream_response(self, response) -> None:
-        """Verify downstream response matches the recorded downstream response."""
-        downstream_response_path = self._get_response_path("downstream")
-        with open(downstream_response_path, "rb") as f:
-            recorded_downstream_response = f.read()
+    def assert_downstream_response(self, response) -> None:
+        """Assert downstream response matches the recorded downstream response."""
         response_normalized = self._normalize_response(response.body)
-        recorded_response_normalized = self._normalize_response(
-            recorded_downstream_response
+        expected_response_normalized = self._normalize_response(
+            self.expected_downstream_response_body
         )
-        assert response_normalized == recorded_response_normalized
+        assert response_normalized == expected_response_normalized
 
     def test(self, testapp: TestApp, requests_mock: MockerCore):
         """Run the replay flow using the configured recording fixtures."""
-        mock = self._mock_upstream(requests_mock)
-        response = self._perform_downstream_request(testapp)
-        self._verify_upstream_request(mock)
-        self._verify_downstream_response(response)
+        mock = self.mock_upstream(requests_mock)
+        response = self.perform_downstream_request(testapp)
+        self.assert_upstream_request(mock)
+        self.assert_downstream_response(response)
