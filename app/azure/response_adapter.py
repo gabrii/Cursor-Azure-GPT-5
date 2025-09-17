@@ -27,6 +27,7 @@ class ResponseAdapter:
     # Per-request chat completion id (for streaming)
     _chat_completion_id: Optional[str]
     _thinking: bool
+    _tool_calls: int
 
     def __init__(self, adapter: Any) -> None:
         """Initialize the adapter with a reference to the AzureAdapter."""
@@ -109,6 +110,7 @@ class ResponseAdapter:
                     )
                 )
                 self._thinking = False
+            self._tool_calls += 1
             name = obj.get("item", {}).get("name")
             arguments = obj.get("item", {}).get("arguments")
             call_id = obj.get("item", {}).get("call_id")
@@ -119,7 +121,7 @@ class ResponseAdapter:
                         "content": None,
                         "tool_calls": [
                             {
-                                "index": 0,
+                                "index": self._tool_calls - 1,
                                 "id": call_id or "",
                                 "type": "function",
                                 "function": {
@@ -152,7 +154,10 @@ class ResponseAdapter:
             self._build_completion_chunk(
                 delta={
                     "tool_calls": [
-                        {"index": 0, "function": {"arguments": arguments_delta}}
+                        {
+                            "index": self._tool_calls - 1,
+                            "function": {"arguments": arguments_delta},
+                        }
                     ]
                 }
             )
@@ -211,7 +216,7 @@ class ResponseAdapter:
             self._chat_completion_id = self._create_chat_completion_id()
             # Initialize per-stream state on the instance
             self._thinking = False
-            self._called_function = False
+            self._tool_calls = 0
 
             def gen_dicts() -> Iterable[Dict[str, Any]]:
                 try:
@@ -233,7 +238,7 @@ class ResponseAdapter:
                                 yield chunk
                 finally:
                     # Emit finish reason at the end of stream
-                    if getattr(self, "_called_function", False):
+                    if self._tool_calls > 0:
                         yield self._build_completion_chunk(finish_reason="tool_calls")
                     else:
                         yield self._build_completion_chunk(finish_reason="stop")
