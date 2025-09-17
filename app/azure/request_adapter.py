@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 from typing import Any, Dict, List, Optional
 
-from flask import Request, Response, current_app
+from flask import Request, current_app
 
 
 class RequestAdapter:
@@ -17,9 +17,7 @@ class RequestAdapter:
 
     Transforms OpenAI Completions/Chat-style inputs into Azure Responses API
     request parameters suitable for streaming completions in this codebase.
-    Returns request_kwargs for requests.request(**kwargs). If an early
-    short-circuit is needed (for example, missing config), sets
-    self.adapter.early_response and returns an empty dict. Also sets
+    Returns request_kwargs for requests.request(**kwargs). Also sets
     per-request state on the adapter (model).
     """
 
@@ -194,22 +192,11 @@ class RequestAdapter:
     def adapt(self, req: Request) -> Dict[str, Any]:
         """Build requests.request kwargs for the Azure Responses API call.
 
-        Validates the inbound request, sets early_response on error, maps inputs
-        to the Responses schema, and returns a dict suitable for
+        Maps inputs to the Responses schema and returns a dict suitable for
         requests.request(**kwargs).
         """
         # Reset per-request state
         self.adapter.inbound_model = None
-        self.adapter.early_response = None
-
-        # Validate method
-        if (req.method or "").upper() != "POST":
-            self.adapter.early_response = Response(
-                "Only POST supported for Azure backend",
-                status=405,
-                mimetype="text/plain",
-            )
-            return {}
 
         # Parse request body
         raw_body = req.get_data(cache=True)
