@@ -11,7 +11,7 @@ import time
 from string import ascii_letters, digits
 from typing import Any, Dict, Iterable, Optional
 
-from flask import Response
+from flask import Response, stream_with_context
 
 from ..common.sse import chunks_to_sse, sse_to_events
 
@@ -25,7 +25,9 @@ class ResponseAdapter:
     """
 
     # Per-request chat completion id (for streaming)
-    _chat_completion_id: Optional[str] = None
+    _chat_completion_id: Optional[str]
+    _thinking: bool
+    _tool_calls: int
 
     def __init__(self, adapter: Any) -> None:
         """Initialize the adapter with a reference to the AzureAdapter."""
@@ -93,18 +95,22 @@ class ResponseAdapter:
             return []
         item_type = obj.get("item", {}).get("type")
         if item_type == "reasoning":
-            # Mark that we should open <think> on first reasoning delta
-            self._started_thinking = True
-            return []
+            self._thinking = True
+            return [
+                self._build_completion_chunk(
+                    delta={"role": "assistant", "content": "<think>\n\n"}
+                )
+            ]
         if item_type == "function_call":
             out: list[Dict[str, Any]] = []
-            if getattr(self, "_thinking", False):
+            if self._thinking:
                 out.append(
                     self._build_completion_chunk(
                         delta={"role": "assistant", "content": "</think>\n\n"}
                     )
                 )
                 self._thinking = False
+            self._tool_calls += 1
             name = obj.get("item", {}).get("name")
             arguments = obj.get("item", {}).get("arguments")
             call_id = obj.get("item", {}).get("call_id")
@@ -115,7 +121,7 @@ class ResponseAdapter:
                         "content": None,
                         "tool_calls": [
                             {
-                                "index": 0,
+                                "index": self._tool_calls - 1,
                                 "id": call_id or "",
                                 "type": "function",
                                 "function": {
@@ -136,7 +142,7 @@ class ResponseAdapter:
     ) -> Iterable[Dict[str, Any]]:
         """Handle response.function_call.arguments.delta events."""
         out: list[Dict[str, Any]] = []
-        if getattr(self, "_thinking", False):
+        if self._thinking:
             out.append(
                 self._build_completion_chunk(
                     delta={"role": "assistant", "content": "</think>\n\n"}
@@ -148,42 +154,28 @@ class ResponseAdapter:
             self._build_completion_chunk(
                 delta={
                     "tool_calls": [
-                        {"index": 0, "function": {"arguments": arguments_delta}}
+                        {
+                            "index": self._tool_calls - 1,
+                            "function": {"arguments": arguments_delta},
+                        }
                     ]
                 }
             )
         )
         return out
 
-    def _output_item__done(
-        self, obj: Optional[Dict[str, Any]]
-    ) -> Optional[Iterable[Dict[str, Any]]]:
-        """Handle response.output_item.done events (no-op for completions)."""
-        # No-op for completions mapping
-        return None
-
     def _reasoning_summary_text__delta(
         self, obj: Optional[Dict[str, Any]]
     ) -> Iterable[Dict[str, Any]]:
         """Handle reasoning.summary_text.delta events and emit text chunks."""
-        out: list[Dict[str, Any]] = []
-        if getattr(self, "_started_thinking", False):
-            out.append(
-                self._build_completion_chunk(
-                    delta={"role": "assistant", "content": "<think>\n\n"}
-                )
-            )
-            self._thinking = True
-            self._started_thinking = False
-        out.append(
+        return [
             self._build_completion_chunk(
                 delta={
                     "role": "assistant",
                     "content": (obj.get("delta", "") if isinstance(obj, dict) else ""),
                 }
             )
-        )
-        return out
+        ]
 
     def _reasoning_summary_text__done(
         self, obj: Optional[Dict[str, Any]]
@@ -198,7 +190,7 @@ class ResponseAdapter:
     ) -> Iterable[Dict[str, Any]]:
         """Handle response.output_text.delta events and emit text chunks."""
         out: list[Dict[str, Any]] = []
-        if getattr(self, "_thinking", False):
+        if self._thinking:
             out.append(
                 self._build_completion_chunk(
                     delta={"role": "assistant", "content": "</think>\n\n"}
@@ -218,13 +210,13 @@ class ResponseAdapter:
     def adapt(self, upstream_resp: Any) -> Response:
         """Adapt an upstream Azure streaming response into SSE for Flask."""
 
+        @stream_with_context
         def generate() -> Iterable[bytes]:
             # Generate once per stream
             self._chat_completion_id = self._create_chat_completion_id()
             # Initialize per-stream state on the instance
-            self._started_thinking = False
             self._thinking = False
-            self._called_function = False
+            self._tool_calls = 0
 
             def gen_dicts() -> Iterable[Dict[str, Any]]:
                 try:
@@ -246,7 +238,7 @@ class ResponseAdapter:
                                 yield chunk
                 finally:
                     # Emit finish reason at the end of stream
-                    if getattr(self, "_called_function", False):
+                    if self._tool_calls > 0:
                         yield self._build_completion_chunk(finish_reason="tool_calls")
                     else:
                         yield self._build_completion_chunk(finish_reason="stop")

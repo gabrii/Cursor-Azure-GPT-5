@@ -79,16 +79,10 @@ def catch_all(path: str):
 def models():
     """Return a list of available models."""
     models = [
-        "gpt-4.1-high",
-        "gpt-4.1-medium",
-        "gpt-4.1-low",
-        "gpt-5",
-        "gpt-5-high",
-        "openai/gpt-high",
-        "openai/gpt-5",
-        "custom/gpt-high",
-        "foo",
-        "high",
+        "gpt-high",
+        "gpt-medium",
+        "gpt-low",
+        "gpt-minimal",
     ]
     return jsonify(
         {

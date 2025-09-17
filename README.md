@@ -244,15 +244,11 @@ docker compose run --rm manage lint --check
 
 ## Testing
 
-Currently, testing and coverage for the project are nonexistent. Only the test skeletons, configuration, commands, and a test-friendly architecture are in place.
+To make the generation of test fixtures easier, the `RECORD_TRAFFIC` flag has been added, which creates files with all the incoming/outgoing traffic between this service and Cursor/Azure in the directory `recordings/`
 
-To make the generation of test fixtures easier, the `RECORD_TRAFFIC` flag has been added, which creates files with all the incoming/outgoing traffic between this service and Cursor/Azure.
+To avoid violating Cursor's intellectual property, a redaction layer removes any sensitive data, such as: system prompts, tool names, tool descriptions, and any context containing scaffolding from Cursor's prompt-building service.
 
-Currently, those fixtures would include sensitive data, such as system prompts, tools, and the entire scaffolding from Cursor's prompt-building service.
-
-To avoid violating Cursor's intellectual property, a redaction layer will have to be implemented so the recorded traffic can be published and used in tests while remaining MIT-licensed.
-
-This is a top priority and will be developed next, before any other features, as traffic recording will also be a valuable tool for users of the service to report issues on GitHub and to improve testing for other contributors to confidently contribute to the project.
+Therefore, recorded traffic can be published under `tests/recordings/` to be used as test fixtures while remaining MIT-licensed.
 
 ## Production
 
