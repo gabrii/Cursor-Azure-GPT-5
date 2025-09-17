@@ -3,13 +3,14 @@
 import logging
 
 import pytest
+from flask import Flask
 from webtest import TestApp
 
 from app import create_app
 
 
 @pytest.fixture
-def app():
+def app() -> Flask:
     """Create application for the tests."""
     _app = create_app("tests.settings")
     _app.logger.setLevel(logging.CRITICAL)
@@ -22,6 +23,6 @@ def app():
 
 
 @pytest.fixture
-def testapp(app):
+def testapp(app) -> TestApp:
     """Create Webtest app."""
     return TestApp(app)
