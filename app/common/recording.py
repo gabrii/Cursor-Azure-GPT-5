@@ -31,8 +31,6 @@ except FileNotFoundError:
 
 for entry in entries:
     entry_path = os.path.join(RECORDINGS_DIR, entry)
-    if not os.path.isdir(entry_path):
-        continue
     try:
         recording_index = int(entry)
         if recording_index > __LAST_RECORDING_INDEX:

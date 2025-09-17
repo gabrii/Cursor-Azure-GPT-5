@@ -163,32 +163,6 @@ def log_request(req: Request) -> str:
     if messages:
         console.rule(f"Messages ({len(messages)})")
 
-        def render_content(content: Any) -> str:
-            """Render a message content value into readable text for logs."""
-            # Show content with actual newlines
-            if content is None:
-                return ""
-            if isinstance(content, bytes):
-                return content.decode("utf-8", errors="replace")
-            if isinstance(content, str):
-                return content
-            if isinstance(content, list):
-                parts: List[str] = []
-                for it in content:
-                    if isinstance(it, dict):
-                        t = it.get("type")
-                        if t == "text" and "text" in it:
-                            parts.append(str(it.get("text", "")))
-                        elif "content" in it and isinstance(it["content"], str):
-                            parts.append(it["content"])
-                        else:
-                            parts.append(json.dumps(it, ensure_ascii=False, indent=2))
-                    else:
-                        parts.append(str(it))
-                return "\n".join(p for p in parts if p is not None)
-            # Fallback: pretty JSON
-            return json.dumps(content, ensure_ascii=False, indent=2)
-
         for idx, msg in enumerate(messages, start=1):
             role = ""
             content_val: Any = ""
@@ -207,8 +181,7 @@ def log_request(req: Request) -> str:
             console.print(
                 Padding(
                     Markdown(
-                        render_content(content_val)
-                        .replace("<", "\n`<")
+                        content_val.replace("<", "\n`<")
                         .replace(">", ">`\n")
                         .replace(">`\n\n\n`<", ">`\n\n`<")
                     ),

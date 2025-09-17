@@ -61,7 +61,7 @@ class AzureAdapter:
         try:
             resp_content = resp.json()
         except ValueError:
-            resp_content = resp.content
+            resp_content = resp.text
 
         body = request_kwargs.get("json", {})
         if "instructions" in body:
