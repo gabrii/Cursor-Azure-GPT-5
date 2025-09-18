@@ -35,7 +35,7 @@ def redact_value(value: str) -> str:
     if not value:
         return value
     if len(value) <= 8:
-        return "***"
+        return "..."
     return value[:4] + "…" + value[-4:]
 
 
