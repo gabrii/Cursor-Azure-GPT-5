@@ -112,8 +112,19 @@ class ReplyBase:
         )
         assert response_normalized == expected_response_normalized
 
+    def modify_settings(self, app) -> None:
+        """Hook to allow subclasses to tweak app.config before running the test.
+
+        Override in subclasses, e.g.:
+
+            def modify_settings(self, app):
+                app.config["RECORD_TRAFFIC"] = True
+        """
+        pass
+
     def test(self, testapp: TestApp, requests_mock: MockerCore):
         """Run the replay flow using the configured recording fixtures."""
+        self.modify_settings(testapp.app)
         mock = self.mock_upstream(requests_mock)
         response = self.perform_downstream_request(testapp)
         self.assert_upstream_request(mock)
