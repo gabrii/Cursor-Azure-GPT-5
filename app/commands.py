@@ -27,9 +27,7 @@ TEST_PATH = os.path.join(PROJECT_ROOT, "tests")
 )
 def test(coverage, filter):
     """Run the tests."""
-    import pytest
-
-    args = [TEST_PATH, "--verbose"]
+    args = ["pytest", TEST_PATH, "--verbose"]
     if coverage:
         args.append("--cov=app")
         args.append("--cov-branch")
@@ -38,7 +36,7 @@ def test(coverage, filter):
         args.append("--cov-report=term")
     if filter:
         args.extend(["-k", filter])
-    rv = pytest.main(args=args)
+    rv = call(args)
     exit(rv)
 
 
