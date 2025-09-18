@@ -6,14 +6,17 @@ import app.commands as commands
 
 
 def test_test_command_calls_pytest_with_coverage_and_exits(mocker):
-    """Invoke `test` command with defaults and ensure pytest args include coverage."""
-    fake_main = mocker.patch("pytest.main", return_value=0)
+    """Invoke `test` command with defaults and ensure subprocess call args include coverage."""
+    mock_call = mocker.patch("app.commands.call", return_value=0)
 
     runner = CliRunner()
     result = runner.invoke(commands.test)
 
     assert result.exit_code == 0
-    expected = [
+    mock_call.assert_called_once()
+    cmdline = mock_call.call_args[0][0]
+    assert cmdline == [
+        "pytest",
         commands.TEST_PATH,
         "--verbose",
         "--cov=app",
@@ -22,26 +25,25 @@ def test_test_command_calls_pytest_with_coverage_and_exits(mocker):
         "--cov-report=html",
         "--cov-report=term",
     ]
-    fake_main.assert_called_once()
-    assert fake_main.call_args.kwargs["args"] == expected
 
 
 def test_test_command_no_coverage_and_filter(mocker):
-    """Invoke `test` with no coverage and a filter; ensure pytest args are correct."""
-    fake_main = mocker.patch("pytest.main", return_value=5)
+    """Invoke `test` with no coverage and a filter; ensure subprocess call args are correct."""
+    mock_call = mocker.patch("app.commands.call", return_value=5)
 
     runner = CliRunner()
     result = runner.invoke(commands.test, ["-C", "-k", "unit and not e2e"])
 
     assert result.exit_code == 5
-    expected = [
+    mock_call.assert_called_once()
+    cmdline = mock_call.call_args[0][0]
+    assert cmdline == [
+        "pytest",
         commands.TEST_PATH,
         "--verbose",
         "-k",
         "unit and not e2e",
     ]
-    fake_main.assert_called_once()
-    assert fake_main.call_args.kwargs["args"] == expected
 
 
 def test_lint_command_invokes_tools_with_expected_order(mocker):
