@@ -17,29 +17,7 @@ from flask import current_app, has_app_context
 RECORDINGS_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "recordings")
 
 # Private, module-level counter tracking the latest recording index.
-__LAST_RECORDING_INDEX = 0
-
-# Initialize the counter based on existing subdirectories in the recordings
-# directory so that subsequent runs continue incrementing from the maximum
-# observed index.
-try:
-    entries = os.listdir(RECORDINGS_DIR)
-except FileNotFoundError:
-    # Create the recordings directory lazily when first used
-    os.makedirs(RECORDINGS_DIR, exist_ok=True)
-    entries = []
-
-for entry in entries:
-    entry_path = os.path.join(RECORDINGS_DIR, entry)
-    if not os.path.isdir(entry_path):
-        continue
-    try:
-        recording_index = int(entry)
-        if recording_index > __LAST_RECORDING_INDEX:
-            __LAST_RECORDING_INDEX = recording_index
-    except ValueError:
-        # Ignore unrelated folders that do not use a numeric name
-        pass
+__LAST_RECORDING_INDEX = -1
 
 
 def config_bypass(func):
@@ -55,6 +33,35 @@ def config_bypass(func):
         return func(*args, **kwargs)
 
     return wrapper
+
+
+@config_bypass
+def init_last_recording() -> None:
+    """Initialize the recording index counter.
+
+    Scans existing subdirectories in the recordings directory so that subsequent
+    runs continue incrementing from the maximum observed index.
+    """
+    global __LAST_RECORDING_INDEX
+    if __LAST_RECORDING_INDEX != -1:
+        return
+    try:
+        entries = os.listdir(RECORDINGS_DIR)
+    except FileNotFoundError:
+        # Create the recordings directory lazily when first used
+        os.makedirs(RECORDINGS_DIR, exist_ok=True)
+        entries = []
+
+    for entry in entries:
+        try:
+            recording_index = int(entry)
+            if recording_index > __LAST_RECORDING_INDEX:
+                __LAST_RECORDING_INDEX = recording_index
+        except ValueError:
+            # Ignore unrelated folders that do not use a numeric name
+            pass
+    if __LAST_RECORDING_INDEX == -1:
+        __LAST_RECORDING_INDEX = 0
 
 
 @config_bypass

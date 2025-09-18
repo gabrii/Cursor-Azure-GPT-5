@@ -13,8 +13,6 @@ from rich.markdown import Markdown
 from rich.padding import Padding
 from rich.panel import Panel
 
-from .sse import SSEEvent
-
 # Global console instance for consistent logging across modules
 console = Console()
 
@@ -37,7 +35,7 @@ def redact_value(value: str) -> str:
     if not value:
         return value
     if len(value) <= 8:
-        return "***"
+        return "..."
     return value[:4] + "…" + value[-4:]
 
 
@@ -59,37 +57,13 @@ def redact_headers(headers: Dict[str, str]) -> Dict[str, str]:
         if k.lower() in sensitive:
             redacted[k] = redact_value(v)
         else:
-            # Heuristic: mask common bearer/api-key looking values
-            if isinstance(v, str) and (
-                v.startswith("Bearer ") or v.startswith("sk-") or "api_key" in k.lower()
-            ):
-                redacted[k] = redact_value(v)
-            else:
-                redacted[k] = v
+            redacted[k] = v
     return redacted
 
 
 def multidict_to_dict(md) -> Dict[str, List[str]]:
     """Convert a werkzeug MultiDict-like object to a plain dict of lists."""
-    try:
-        return {k: list(vs) for k, vs in md.lists()}
-    except AttributeError:
-        # Fallback for objects without .lists()
-        return {k: [md.get(k)] for k in md.keys()}
-
-
-def files_summary(req: Request) -> List[Dict[str, Any]]:
-    """Return a summary of uploaded files from a Flask request."""
-    items: List[Dict[str, Any]] = []
-    for name, storage in req.files.items():
-        items.append(
-            {
-                "field": name,
-                "filename": getattr(storage, "filename", "<unavailable>"),
-                "content_type": getattr(storage, "content_type", "<unknown>"),
-            }
-        )
-    return items
+    return {k: list(vs) for k, vs in md.lists()}
 
 
 def _capture_request_details(req: Request, request_id: str) -> Dict[str, Any]:
@@ -111,7 +85,6 @@ def _capture_request_details(req: Request, request_id: str) -> Dict[str, Any]:
         "query_args": multidict_to_dict(req.args),
         "form": multidict_to_dict(req.form),
         "json": req.get_json(silent=True),
-        "files": files_summary(req),
         "cookies": req.cookies.to_dict() if req.cookies else {},
         "headers": redacted_headers,
         "user_agent": str(req.user_agent) if req.user_agent else "",
@@ -163,32 +136,6 @@ def log_request(req: Request) -> str:
     if messages:
         console.rule(f"Messages ({len(messages)})")
 
-        def render_content(content: Any) -> str:
-            """Render a message content value into readable text for logs."""
-            # Show content with actual newlines
-            if content is None:
-                return ""
-            if isinstance(content, bytes):
-                return content.decode("utf-8", errors="replace")
-            if isinstance(content, str):
-                return content
-            if isinstance(content, list):
-                parts: List[str] = []
-                for it in content:
-                    if isinstance(it, dict):
-                        t = it.get("type")
-                        if t == "text" and "text" in it:
-                            parts.append(str(it.get("text", "")))
-                        elif "content" in it and isinstance(it["content"], str):
-                            parts.append(it["content"])
-                        else:
-                            parts.append(json.dumps(it, ensure_ascii=False, indent=2))
-                    else:
-                        parts.append(str(it))
-                return "\n".join(p for p in parts if p is not None)
-            # Fallback: pretty JSON
-            return json.dumps(content, ensure_ascii=False, indent=2)
-
         for idx, msg in enumerate(messages, start=1):
             role = ""
             content_val: Any = ""
@@ -207,8 +154,7 @@ def log_request(req: Request) -> str:
             console.print(
                 Padding(
                     Markdown(
-                        render_content(content_val)
-                        .replace("<", "\n`<")
+                        content_val.replace("<", "\n`<")
                         .replace(">", ">`\n")
                         .replace(">`\n\n\n`<", ">`\n\n`<")
                     ),
@@ -244,46 +190,45 @@ def log_request(req: Request) -> str:
     return request_id
 
 
-# --- SSE logging helpers ---
+# --- SSE logging helpers, keeping for future use if we enable SSE logging ---
+# from .sse import SSEEvent
+# def _clean_payload(obj: Any) -> Any:
+#     """Default cleaning to reduce noisy fields in logs.
+
+#     - If obj is a dict, remove top-level 'tools'
+#     - If it contains a nested 'response' dict, also remove its 'tools'
+#     Returns a shallow-cleaned copy when applicable; otherwise returns the input unchanged.
+#     """
+#     if not isinstance(obj, dict):
+#         return obj
+#     # Shallow copy top-level
+#     cleaned = {k: v for k, v in obj.items()}
+#     if "tools" in cleaned:
+#         cleaned = {k: v for k, v in cleaned.items() if k != "tools"}
+#     resp = cleaned.get("response")
+#     if isinstance(resp, dict) and "tools" in resp:
+#         # Shallow copy nested response to drop tools
+#         new_resp = {k: v for k, v in resp.items() if k != "tools"}
+#         cleaned = {**cleaned, "response": new_resp}
+#     return cleaned
 
 
-def _clean_payload(obj: Any) -> Any:
-    """Default cleaning to reduce noisy fields in logs.
+# def log_event(ev: SSEEvent) -> None:
+#     """Pretty-print one SSE event using Rich.
 
-    - If obj is a dict, remove top-level 'tools'
-    - If it contains a nested 'response' dict, also remove its 'tools'
-    Returns a shallow-cleaned copy when applicable; otherwise returns the input unchanged.
-    """
-    if not isinstance(obj, dict):
-        return obj
-    # Shallow copy top-level
-    cleaned = {k: v for k, v in obj.items()}
-    if "tools" in cleaned:
-        cleaned = {k: v for k, v in cleaned.items() if k != "tools"}
-    resp = cleaned.get("response")
-    if isinstance(resp, dict) and "tools" in resp:
-        # Shallow copy nested response to drop tools
-        new_resp = {k: v for k, v in resp.items() if k != "tools"}
-        cleaned = {**cleaned, "response": new_resp}
-    return cleaned
-
-
-def log_event(ev: SSEEvent) -> None:
-    """Pretty-print one SSE event using Rich.
-
-    - Title reflects whether the event had an 'event' name and its index
-    - If payload parses as JSON (ev.json), it is cleaned and printed as JSON; otherwise raw text is printed
-    """
-    obj = ev.json
-    if obj is not None:
-        title = (
-            f"SSE JSON #{ev.index}" if not ev.event else f"SSE {ev.event} #{ev.index}"
-        )
-        console.print(Panel.fit(title))
-        console.print_json(data=_clean_payload(obj))
-    else:
-        title = f"SSE data #{ev.index}"
-        if ev.event:
-            title = f"SSE {ev.event} #{ev.index}"
-        console.print(Panel.fit(title))
-        console.print(ev.data)
+#     - Title reflects whether the event had an 'event' name and its index
+#     - If payload parses as JSON (ev.json), it is cleaned and printed as JSON; otherwise raw text is printed
+#     """
+#     obj = ev.json
+#     if obj is not None:
+#         title = (
+#             f"SSE JSON #{ev.index}" if not ev.event else f"SSE {ev.event} #{ev.index}"
+#         )
+#         console.print(Panel.fit(title))
+#         console.print_json(data=_clean_payload(obj))
+#     else:
+#         title = f"SSE data #{ev.index}"
+#         if ev.event:
+#             title = f"SSE {ev.event} #{ev.index}"
+#         console.print(Panel.fit(title))
+#         console.print(ev.data)

@@ -2,11 +2,11 @@
 -r prod.txt
 
 # Testing
-factory-boy==3.3.3
 pytest==8.4.2
 pytest-cov==7.0.0
 WebTest==3.0.6
 requests-mock==1.12.1
+pytest-mock==3.15.1
 
 # Lint and code style
 black==25.1.0

@@ -15,7 +15,7 @@ class TestOnePingPong(ReplyBase):
 class TestMultiplePingPongs(ReplyBase):
     """Test multiple ping-pong interactions back and forth, no tool calls."""
 
-    recording = "one_ping_pong"
+    recording = "multiple_ping_pongs"
 
 
 class TestContextWithSingleToolCalls(ReplyBase):
