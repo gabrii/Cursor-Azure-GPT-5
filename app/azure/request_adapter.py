@@ -6,7 +6,7 @@ requests into Azure Responses API request parameters.
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from flask import Request, current_app
 
@@ -25,29 +25,6 @@ class RequestAdapter:
         self.adapter = adapter  # AzureAdapter instance for shared config/env
 
     # ---- Helpers (kept local to minimize cross-module coupling) ----
-    def _normalize_call_id(
-        self, original: Optional[str], mapping: Dict[str, str]
-    ) -> Optional[str]:
-        """Return a <=64 char stable call_id.
-
-        - Azure Responses API limits function call ids to 64 chars.
-        - Cursor/OpenAI tool_call ids may exceed that. We map any long ids
-          to a deterministic 64-char hex digest for this request, while
-          preserving pairing between function_call and function_call_output.
-        """
-        if not original:
-            return original
-        if len(original) <= 64:
-            # Still ensure consistent mapping if we've seen it before
-            return mapping.get(original, original)
-        if original in mapping:
-            return mapping[original]
-        import hashlib
-
-        norm = hashlib.sha256(original.encode("utf-8")).hexdigest()  # 64 hex chars
-        mapping[original] = norm
-        return norm
-
     def _copy_request_headers_for_azure(
         self, src: Request, *, api_key: str
     ) -> Dict[str, str]:
@@ -64,9 +41,6 @@ class RequestAdapter:
         instructions_parts: List[str] = []
         input_items: List[Dict[str, Any]] = []
 
-        # Maintain stable mapping of long tool call ids within a single request
-        call_id_map: Dict[str, str] = {}
-
         for m in messages:
             role = m.get("role")
             c = m.get("content")
@@ -77,16 +51,13 @@ class RequestAdapter:
                 continue
             # For user/assistant/tools as inputs
             if role == "tool":
-                # Map tool outputs back to a normalized call id
-                original_tool_call_id = m.get("tool_call_id")
-                norm_call_id = self._normalize_call_id(
-                    original_tool_call_id, call_id_map
-                )
+                call_id = m.get("tool_call_id")
+
                 item = {
                     "type": "function_call_output",
                     "output": c,
                     "status": "completed",
-                    "call_id": norm_call_id,
+                    "call_id": call_id,
                 }
                 input_items.append(item)
             else:
@@ -105,13 +76,12 @@ class RequestAdapter:
                 if tool_calls := m.get("tool_calls"):
                     for tool_call in tool_calls:
                         function = tool_call.get("function", {})
-                        original_id = tool_call.get("id")
-                        norm_call_id = self._normalize_call_id(original_id, call_id_map)
+                        call_id = tool_call.get("id")
                         item = {
                             "type": "function_call",
                             "name": function.get("name"),
                             "arguments": function.get("arguments"),
-                            "call_id": norm_call_id,
+                            "call_id": call_id,
                         }
                         input_items.append(item)
 
