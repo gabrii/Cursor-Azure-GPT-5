@@ -8,7 +8,7 @@ This module provides helpers to decode and encode SSE streams, including:
 
 import json
 from dataclasses import dataclass, field
-from typing import Any, Dict, Iterable, Iterator, List, Optional, Tuple
+from typing import Any, Dict, Iterable, Iterator, List, Optional
 
 from .recording import record_sse
 
@@ -150,58 +150,13 @@ def sse_to_events(
     yield from decoder.end_of_input()
 
 
-def sse_to_chunks(
-    stream: Iterable[bytes], *, skip_done: bool = True, encoding: str = "utf-8"
-) -> Iterator[Dict[str, Any]]:
-    """Convert an SSE byte-stream to an iterator of JSON dicts.
-
-    - Collects multi-line data fields per SSE spec
-    - Uses event.json to avoid repeated json.loads
-    - Skips the [DONE] sentinel by default
-    """
-    for ev in sse_to_events(stream, encoding=encoding):
-        if skip_done and ev.is_done:
-            continue
-        if ev.json is None:
-            continue
-        yield ev.json
-
-
-def sse_to_json_events(
-    stream: Iterable[bytes], *, skip_done: bool = True, encoding: str = "utf-8"
-) -> Iterator[Tuple[Optional[str], Dict[str, Any]]]:
-    """Yield (event, json_obj) pairs for events whose data parses as JSON.
-
-    Non-JSON events are skipped. The [DONE] sentinel is skipped if skip_done
-    is True.
-    """
-    for ev in sse_to_events(stream, encoding=encoding):
-        if skip_done and ev.is_done:
-            continue
-        obj = ev.json
-        if obj is None:
-            continue
-        yield (ev.event, obj)
-
-
-def encode_sse_data(
-    data: str, *, event: Optional[str] = None, id: Optional[str] = None
-) -> bytes:
+def encode_sse_data(data: str) -> bytes:
     """Encode a single SSE message into bytes.
 
     If the data contains newlines, they are split into multiple "data:" lines
     as per the SSE spec. Optionally include event and id.
     """
     out = bytearray()
-    if id is not None:
-        out.extend(b"id: ")
-        out.extend(id.encode("utf-8"))
-        out.extend(b"\n")
-    if event is not None:
-        out.extend(b"event: ")
-        out.extend(event.encode("utf-8"))
-        out.extend(b"\n")
-
     if data == "":
         out.extend(b"data:\n")
     else:
@@ -213,12 +168,10 @@ def encode_sse_data(
     return bytes(out)
 
 
-def encode_sse_json(
-    obj: Any, *, event: Optional[str] = None, id: Optional[str] = None
-) -> bytes:
+def encode_sse_json(obj: Any) -> bytes:
     """Encode a Python object as JSON in SSE format and return bytes."""
     payload = json.dumps(obj, ensure_ascii=False, separators=(",", ":"))
-    return encode_sse_data(payload, event=event, id=id)
+    return encode_sse_data(payload)
 
 
 def chunks_to_sse(
@@ -245,3 +198,38 @@ def chunks_to_sse(
 def done_event_bytes() -> bytes:
     """Return the SSE-encoded [DONE] sentinel as bytes."""
     return encode_sse_data("[DONE]")
+
+
+# Keeping for future use if we enable OpenAI backend
+# def sse_to_chunks(
+#     stream: Iterable[bytes], *, skip_done: bool = True, encoding: str = "utf-8"
+# ) -> Iterator[Dict[str, Any]]:
+#     """Convert an SSE byte-stream to an iterator of JSON dicts.
+#
+#     - Collects multi-line data fields per SSE spec
+#     - Uses event.json to avoid repeated json.loads
+#     - Skips the [DONE] sentinel by default
+#     """
+#     for ev in sse_to_events(stream, encoding=encoding):
+#         if skip_done and ev.is_done:
+#             continue
+#         if ev.json is None:
+#             continue
+#         yield ev.json
+#
+#
+# def sse_to_json_events(
+#     stream: Iterable[bytes], *, skip_done: bool = True, encoding: str = "utf-8"
+# ) -> Iterator[Tuple[Optional[str], Dict[str, Any]]]:
+#     """Yield (event, json_obj) pairs for events whose data parses as JSON.
+#
+#     Non-JSON events are skipped. The [DONE] sentinel is skipped if skip_done
+#     is True.
+#     """
+#     for ev in sse_to_events(stream, encoding=encoding):
+#         if skip_done and ev.is_done:
+#             continue
+#         obj = ev.json
+#         if obj is None:
+#             continue
+#         yield (ev.event, obj)
