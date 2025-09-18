@@ -2,7 +2,6 @@
 -r prod.txt
 
 # Testing
-factory-boy==3.3.3
 pytest==8.4.2
 pytest-cov==7.0.0
 WebTest==3.0.6
