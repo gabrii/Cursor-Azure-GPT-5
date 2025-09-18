@@ -40,31 +40,6 @@ class ResponseAdapter:
         alphabet = ascii_letters + digits
         return "chatcmpl-" + "".join(random.choices(alphabet, k=24))
 
-    @staticmethod
-    def _filter_response_headers(
-        headers: Dict[str, str], *, streaming: bool
-    ) -> Dict[str, str]:
-        """Filter hop-by-hop and incompatible headers for downstream responses."""
-        # Minimal hop-by-hop headers list for downstream filtering
-        hop_by_hop_headers = {
-            "connection",
-            "keep-alive",
-            "proxy-authenticate",
-            "proxy-authorization",
-            "te",
-            "trailers",
-            "transfer-encoding",
-            "upgrade",
-        }
-        out: Dict[str, str] = {}
-        for k, v in headers.items():
-            if k.lower() in hop_by_hop_headers:
-                continue
-            if streaming and k.lower() == "content-length":
-                continue
-            out[k] = v
-        return out
-
     def _build_completion_chunk(
         self,
         *,
@@ -91,8 +66,7 @@ class ResponseAdapter:
         self, obj: Optional[Dict[str, Any]]
     ) -> Iterable[Dict[str, Any]]:
         """Handle response.output_item.added events and emit chunks as needed."""
-        if not isinstance(obj, dict):
-            return []
+
         item_type = obj.get("item", {}).get("type")
         if item_type == "reasoning":
             self._thinking = True
@@ -142,13 +116,6 @@ class ResponseAdapter:
     ) -> Iterable[Dict[str, Any]]:
         """Handle response.function_call.arguments.delta events."""
         out: list[Dict[str, Any]] = []
-        if self._thinking:
-            out.append(
-                self._build_completion_chunk(
-                    delta={"role": "assistant", "content": "</think>\n\n"}
-                )
-            )
-            self._thinking = False
         arguments_delta = obj.get("delta", "") if isinstance(obj, dict) else ""
         out.append(
             self._build_completion_chunk(
@@ -223,9 +190,6 @@ class ResponseAdapter:
                     for ev in sse_to_events(
                         upstream_resp.iter_content(chunk_size=8192)
                     ):
-                        if ev.is_done:
-                            # Upstream [DONE] sentinel
-                            continue
                         handler_name = "_" + (ev.event or "").replace(
                             "response.", ""
                         ).replace(".", "__")
@@ -249,11 +213,8 @@ class ResponseAdapter:
             finally:
                 upstream_resp.close()
 
-        headers = self._filter_response_headers(
-            dict(getattr(upstream_resp, "headers", {})), streaming=True
-        )
+        headers = {}
         headers["Content-Type"] = "text/event-stream; charset=utf-8"
-        headers.pop("Content-Length", None)
         headers["Cache-Control"] = "no-cache"
         headers["Connection"] = "keep-alive"
         headers["X-Accel-Buffering"] = "no"

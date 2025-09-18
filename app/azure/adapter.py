@@ -23,12 +23,11 @@ class AzureAdapter:
     Provides a Completions-compatible interface to the caller by composing a
     RequestAdapter (pre-request transformations) and a ResponseAdapter
     (post-request transformations). The adapters receive a reference to this
-    instance for shared per-request state (models/early_response).
+    instance for shared per-request state (models).
     """
 
     # Per-request state (streaming completions only)
     inbound_model: Optional[str] = None
-    early_response: Optional[Response] = None
 
     def __init__(self) -> None:
         """Initialize child adapters and shared state references."""
@@ -42,15 +41,11 @@ class AzureAdapter:
 
         High-level flow:
         1) RequestAdapter builds the upstream request kwargs and stores state
-           on this adapter (models) or sets early_response.
+           on this adapter (models).
         2) Perform the upstream HTTP call using a short-lived requests call.
         3) ResponseAdapter converts the upstream response into a Flask Response.
         """
         request_kwargs = self.request_adapter.adapt(req)
-
-        # Allow early short-circuit responses (e.g., config errors)
-        if self.early_response is not None:
-            return self.early_response
 
         record_payload(request_kwargs.get("json", {}), "upstream_request")
 
@@ -66,7 +61,7 @@ class AzureAdapter:
         try:
             resp_content = resp.json()
         except ValueError:
-            resp_content = resp.content
+            resp_content = resp.text
 
         body = request_kwargs.get("json", {})
         if "instructions" in body:

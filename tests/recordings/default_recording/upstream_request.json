@@ -1,0 +1,400 @@
+{
+  "instructions": "REDACTED",
+  "input": [
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "input_text",
+          "text": "REDACTED"
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "input_text",
+          "text": "REDACTED"
+        }
+      ]
+    }
+  ],
+  "model": "gpt-5",
+  "tools": [
+    {
+      "type": "function",
+      "name": "REDACTED",
+      "description": "REDACTED",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "explanation": {
+            "type": "string",
+            "description": "REDACTED"
+          },
+          "query": {
+            "type": "string",
+            "description": "REDACTED"
+          },
+          "target_directories": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "REDACTED"
+          },
+          "search_only_prs": {
+            "type": "boolean",
+            "description": "REDACTED"
+          }
+        },
+        "required": [
+          "explanation",
+          "query",
+          "target_directories"
+        ]
+      },
+      "strict": false
+    },
+    {
+      "type": "function",
+      "name": "REDACTED",
+      "description": "REDACTED",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "command": {
+            "type": "string",
+            "description": "REDACTED"
+          },
+          "is_background": {
+            "type": "boolean",
+            "description": "REDACTED"
+          },
+          "explanation": {
+            "type": "string",
+            "description": "REDACTED"
+          }
+        },
+        "required": [
+          "command",
+          "is_background"
+        ]
+      },
+      "strict": false
+    },
+    {
+      "type": "function",
+      "name": "REDACTED",
+      "description": "REDACTED",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "pattern": {
+            "type": "string",
+            "description": "REDACTED"
+          },
+          "path": {
+            "type": "string",
+            "description": "REDACTED"
+          },
+          "glob": {
+            "type": "string",
+            "description": "REDACTED"
+          },
+          "output_mode": {
+            "type": "string",
+            "description": "REDACTED",
+            "enum": [
+              "content",
+              "files_with_matches",
+              "count"
+            ]
+          },
+          "-B": {
+            "type": "number",
+            "description": "REDACTED"
+          },
+          "-A": {
+            "type": "number",
+            "description": "REDACTED"
+          },
+          "-C": {
+            "type": "number",
+            "description": "REDACTED"
+          },
+          "-i": {
+            "type": "boolean",
+            "description": "REDACTED"
+          },
+          "type": {
+            "type": "string",
+            "description": "REDACTED"
+          },
+          "head_limit": {
+            "type": "number",
+            "description": "REDACTED"
+          },
+          "multiline": {
+            "type": "boolean",
+            "description": "REDACTED"
+          }
+        },
+        "required": [
+          "pattern"
+        ]
+      },
+      "strict": false
+    },
+    {
+      "type": "function",
+      "name": "REDACTED",
+      "description": "REDACTED",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "target_file": {
+            "type": "string",
+            "description": "REDACTED"
+          },
+          "explanation": {
+            "type": "string",
+            "description": "REDACTED"
+          }
+        },
+        "required": [
+          "target_file"
+        ]
+      },
+      "strict": false
+    },
+    {
+      "type": "function",
+      "name": "REDACTED",
+      "description": "REDACTED",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "paths": {
+            "description": "REDACTED",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": []
+      },
+      "strict": false
+    },
+    {
+      "type": "function",
+      "name": "REDACTED",
+      "description": "REDACTED",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "target_notebook": {
+            "type": "string",
+            "description": "REDACTED"
+          },
+          "cell_idx": {
+            "type": "number",
+            "description": "REDACTED"
+          },
+          "is_new_cell": {
+            "type": "boolean",
+            "description": "REDACTED"
+          },
+          "cell_language": {
+            "type": "string",
+            "description": "REDACTED"
+          },
+          "old_string": {
+            "type": "string",
+            "description": "REDACTED"
+          },
+          "new_string": {
+            "type": "string",
+            "description": "REDACTED"
+          }
+        },
+        "required": [
+          "target_notebook",
+          "cell_idx",
+          "is_new_cell",
+          "cell_language",
+          "old_string",
+          "new_string"
+        ]
+      },
+      "strict": false
+    },
+    {
+      "type": "function",
+      "name": "REDACTED",
+      "description": "REDACTED",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "merge": {
+            "type": "boolean",
+            "description": "REDACTED"
+          },
+          "todos": {
+            "type": "array",
+            "description": "REDACTED",
+            "items": {
+              "type": "object",
+              "properties": {
+                "content": {
+                  "type": "string",
+                  "description": "REDACTED"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "pending",
+                    "in_progress",
+                    "completed",
+                    "cancelled"
+                  ],
+                  "description": "REDACTED"
+                },
+                "id": {
+                  "type": "string",
+                  "description": "REDACTED"
+                }
+              },
+              "required": [
+                "content",
+                "status",
+                "id"
+              ]
+            },
+            "minItems": 2
+          }
+        },
+        "required": [
+          "merge",
+          "todos"
+        ]
+      },
+      "strict": false
+    },
+    {
+      "type": "function",
+      "name": "REDACTED",
+      "description": "REDACTED",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "target_file": {
+            "type": "string",
+            "description": "REDACTED"
+          },
+          "instructions": {
+            "type": "string",
+            "description": "REDACTED"
+          },
+          "code_edit": {
+            "type": "string",
+            "description": "REDACTED"
+          }
+        },
+        "required": [
+          "target_file",
+          "instructions",
+          "code_edit"
+        ]
+      },
+      "strict": false
+    },
+    {
+      "type": "function",
+      "name": "REDACTED",
+      "description": "REDACTED",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "target_file": {
+            "type": "string",
+            "description": "REDACTED"
+          },
+          "offset": {
+            "type": "integer",
+            "description": "REDACTED"
+          },
+          "limit": {
+            "type": "integer",
+            "description": "REDACTED"
+          }
+        },
+        "required": [
+          "target_file"
+        ]
+      },
+      "strict": false
+    },
+    {
+      "type": "function",
+      "name": "REDACTED",
+      "description": "REDACTED",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "target_directory": {
+            "type": "string",
+            "description": "REDACTED"
+          },
+          "ignore_globs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "REDACTED"
+          }
+        },
+        "required": [
+          "target_directory"
+        ]
+      },
+      "strict": false
+    },
+    {
+      "type": "function",
+      "name": "REDACTED",
+      "description": "REDACTED",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "target_directory": {
+            "type": "string",
+            "description": "REDACTED"
+          },
+          "glob_pattern": {
+            "type": "string",
+            "description": "REDACTED"
+          }
+        },
+        "required": [
+          "glob_pattern"
+        ]
+      },
+      "strict": false
+    }
+  ],
+  "tool_choice": "auto",
+  "prompt_cache_key": "REDACTED",
+  "stream": true,
+  "reasoning": {
+    "effort": "minimal",
+    "summary": "detailed"
+  },
+  "store": false,
+  "stream_options": {
+    "include_obfuscation": false
+  },
+  "truncation": "auto"
+}
