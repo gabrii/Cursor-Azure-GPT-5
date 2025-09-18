@@ -190,9 +190,6 @@ class ResponseAdapter:
                     for ev in sse_to_events(
                         upstream_resp.iter_content(chunk_size=8192)
                     ):
-                        if ev.is_done:
-                            # Upstream [DONE] sentinel
-                            continue
                         handler_name = "_" + (ev.event or "").replace(
                             "response.", ""
                         ).replace(".", "__")
