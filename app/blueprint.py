@@ -13,7 +13,11 @@ from rich.traceback import install as install_rich_traceback
 from .auth import require_auth
 from .azure.adapter import AzureAdapter
 from .common.logging import log_request
-from .common.recording import increment_last_recording, record_payload
+from .common.recording import (
+    increment_last_recording,
+    init_last_recording,
+    record_payload,
+)
 
 blueprint = Blueprint("blueprint", __name__)
 
@@ -67,6 +71,7 @@ def catch_all(path: str):
     returns a 502 JSON error payload.
     """
     log_request(request)
+    init_last_recording()
     increment_last_recording()
     record_payload(request.json, "downstream_request")
     adapter = AzureAdapter()
