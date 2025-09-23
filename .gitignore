@@ -40,7 +40,7 @@ env/
 .env
 
 # Recordings
-recordings/
+/recordings/
 
 # Legacy openai backend
 backend_openai.py
