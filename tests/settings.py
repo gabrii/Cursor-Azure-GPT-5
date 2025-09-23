@@ -10,6 +10,7 @@ AZURE_BASE_URL = "https://test-resource.openai.azure.com"
 AZURE_API_KEY = "test-api-key"
 AZURE_DEPLOYMENT = "gpt-5"
 AZURE_SUMMARY_LEVEL = "detailed"
+AZURE_VERBOSITY_LEVEL = "medium"
 AZURE_TRUNCATION = "auto"
 
 RECORD_TRAFFIC = False

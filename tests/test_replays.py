@@ -40,3 +40,13 @@ class TestReplyWithParallelToolCall(ReplyBase):
     """Parallel tool calls in the reply."""
 
     recording = "reply_parallel_tool_call"
+
+
+class TestReplyVerbosityLevelHigh(ReplyBase):
+    """Reply with verbosity level set to high."""
+
+    def modify_settings(self, app):
+        """Sets verbosity level to high."""
+        app.config["AZURE_VERBOSITY_LEVEL"] = "high"
+
+    recording = "verbosity_level"

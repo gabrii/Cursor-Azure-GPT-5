@@ -178,6 +178,10 @@ class RequestAdapter:
         if settings["AZURE_SUMMARY_LEVEL"] in {"auto", "detailed", "concise"}:
             responses_body["reasoning"]["summary"] = settings["AZURE_SUMMARY_LEVEL"]
 
+        # No need to pass verbosity if it's set to medium, as it's the model's default
+        if settings["AZURE_VERBOSITY_LEVEL"] in {"low", "high"}:
+            responses_body["text"] = {"verbosity": settings["AZURE_VERBOSITY_LEVEL"]}
+
         responses_body["store"] = False
         responses_body["stream_options"] = {"include_obfuscation": False}
         responses_body["truncation"] = settings["AZURE_TRUNCATION"]

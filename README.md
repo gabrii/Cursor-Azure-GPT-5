@@ -39,13 +39,14 @@ If you prefer to deploy the service (for example, to allow multiple members of y
 
 Make a copy of the file `.env.example` as `.env` and update the following flags as needed:
 
-| Flag                  | Description                                                                                                                    | Default     |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ----------- |
-| `AZURE_BASE_URL`      | Your Azure OpenAI endpoint base URL (no trailing slash), e.g. `https://<resource>.openai.azure.com`.                           | required    |
-| `AZURE_API_KEY`       | Azure OpenAI API key.                                                                                                          | required    |
-| `AZURE_DEPLOYMENT`    | Name of the Azure model deployment to use.                                                                                     | `gpt-5`     |
-| `SERVICE_API_KEY`     | Arbitrary API key to protect your service. Set it to a random string.                                                          | `change-me` |
-| `AZURE_SUMMARY_LEVEL` | Set to `none` to disable summaries. You might have to disable them if your organization hasn't been approved for this feature. | `detailed`  |
+| Flag                    | Description                                                                                                                    | Default     |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ----------- |
+| `SERVICE_API_KEY`       | Arbitrary API key to protect your service. Set it to a random string.                                                          | `change-me` |
+| `AZURE_BASE_URL`        | Your Azure OpenAI endpoint base URL (no trailing slash), e.g. `https://<resource>.openai.azure.com`.                           | required    |
+| `AZURE_API_KEY`         | Azure OpenAI API key.                                                                                                          | required    |
+| `AZURE_DEPLOYMENT`      | Name of the Azure model deployment to use.                                                                                     | `gpt-5`     |
+| `AZURE_VERBOSITY_LEVEL` | Hint the model to be more or less expansive in its replies. Use either `high` / `medium` / `low`                               | `medium`    |
+| `AZURE_SUMMARY_LEVEL`   | Set to `none` to disable summaries. You might have to disable them if your organization hasn't been approved for this feature. | `detailed`  |
 
 Alternatively, you can pass them through the environment where you run the application.
 
