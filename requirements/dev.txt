@@ -9,7 +9,7 @@ requests-mock==1.12.1
 pytest-mock==3.15.1
 
 # Lint and code style
-black==25.1.0
+black==25.9.0
 flake8-blind-except==0.2.1
 flake8-debugger==4.1.2
 flake8-docstrings==1.7.0
