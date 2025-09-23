@@ -12,7 +12,7 @@ loguru==0.7.3
 requests==2.32.5
 
 # Deployment
-gevent==25.8.2
+gevent==25.9.1
 gunicorn>=19.9.0
 supervisor==4.3.0
 
