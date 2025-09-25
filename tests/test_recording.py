@@ -71,6 +71,9 @@ class TestRecording(ReplyBase):
         # Unrelated folder
         os.makedirs(os.path.join(tmp_path, "foo"))
 
+        # Smaller index than last recording index
+        os.makedirs(os.path.join(tmp_path, "-10"))
+
         super().test(testapp, requests_mock)
 
         assert os.path.exists(os.path.join(tmp_path, "124"))
