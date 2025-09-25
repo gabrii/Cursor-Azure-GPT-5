@@ -10,6 +10,8 @@ from typing import Any, Dict, List
 
 from flask import Request, current_app
 
+from ..exceptions import CursorConfigurationError, ServiceConfigurationError
+
 
 class RequestAdapter:
     """Handle pre-request adaptation for the Azure Responses API.
@@ -165,8 +167,9 @@ class RequestAdapter:
 
         reasoning_effort = inbound_model.replace("gpt-", "").lower()
         if reasoning_effort not in {"high", "medium", "low", "minimal"}:
-            raise ValueError(
-                "Model name must be either gpt-high, gpt-medium, gpt-low, or gpt-minimal"
+            raise CursorConfigurationError(
+                "Model name must be either gpt-high, gpt-medium, gpt-low, or gpt-minimal."
+                f"\n\nGot: {inbound_model}"
             )
 
         responses_body["reasoning"] = {
@@ -177,6 +180,11 @@ class RequestAdapter:
         # but allowing it for now to be able to test it on other models
         if settings["AZURE_SUMMARY_LEVEL"] in {"auto", "detailed", "concise"}:
             responses_body["reasoning"]["summary"] = settings["AZURE_SUMMARY_LEVEL"]
+        else:
+            raise ServiceConfigurationError(
+                "AZURE_SUMMARY_LEVEL must be either auto, detailed, or concise."
+                f"\n\nGot: {settings['AZURE_SUMMARY_LEVEL']}"
+            )
 
         # No need to pass verbosity if it's set to medium, as it's the model's default
         if settings["AZURE_VERBOSITY_LEVEL"] in {"low", "high"}:

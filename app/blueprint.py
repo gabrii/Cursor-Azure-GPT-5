@@ -18,6 +18,7 @@ from .common.recording import (
     init_last_recording,
     record_payload,
 )
+from .exceptions import ConfigurationError
 
 blueprint = Blueprint("blueprint", __name__)
 
@@ -103,3 +104,9 @@ def models():
             ],
         }
     )
+
+
+@blueprint.errorhandler(ConfigurationError)
+def configuration_error(e: ConfigurationError):
+    """Return a 400 JSON error payload for ValueError."""
+    return e.get_response_content(), 400
