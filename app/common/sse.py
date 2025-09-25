@@ -7,7 +7,7 @@ This module provides helpers to decode and encode SSE streams, including:
 """
 
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Dict, Iterable, Iterator, List, Optional
 
 from .recording import record_sse
@@ -31,17 +31,6 @@ class SSEEvent:
     retry: Optional[int] = None
     # Monotonic sequence number (1-based) within a stream, set by the decoder
     index: int = 0
-    # Lazy JSON cache (computed on first access of .json)
-    _json_cached: bool = field(default=False, init=False, repr=False)
-    _json_value: Optional[Any] = field(default=None, init=False, repr=False)
-
-    @property
-    def is_done(self) -> bool:
-        """Return True if this event marks the end of the stream.
-
-        The end-of-stream sentinel is the literal string "[DONE]".
-        """
-        return self.data.strip() == "[DONE]"
 
     @property
     def json(self) -> Optional[Any]:
@@ -49,19 +38,9 @@ class SSEEvent:
 
         Returns None if the data is empty, invalid JSON, or the [DONE] sentinel.
         """
-        if not self._json_cached:
-            val: Optional[Any]
-            text = (self.data or "").strip()
-            if self.is_done or not text:
-                val = None
-            else:
-                try:
-                    val = json.loads(text)
-                except json.JSONDecodeError:
-                    val = None
-            self._json_value = val
-            self._json_cached = True
-        return self._json_value
+        text = (self.data or "").strip()
+        val: Optional[Any] = json.loads(text)
+        return val
 
 
 class SSEDecoder:
@@ -92,11 +71,8 @@ class SSEDecoder:
                     .strip()
                     .decode(self.encoding, errors="replace")
                 )
-            elif line.startswith(b"data:"):
-                part = line[5:]
-                if part.startswith(b" "):
-                    part = part[1:]
-                data_parts.append(part)
+            else:
+                data_parts.append(line[5:].strip())
 
         data_text = (
             b"\n".join(data_parts).decode(self.encoding, errors="replace")
@@ -107,8 +83,6 @@ class SSEDecoder:
 
     def feed(self, chunk: bytes) -> Iterator[SSEEvent]:
         """Feed a new bytes chunk and yield any complete parsed events."""
-        if not chunk:
-            return
         self.buffer += chunk
         self.full_buffer += chunk
         while True:
@@ -119,11 +93,10 @@ class SSEDecoder:
             self.buffer = self.buffer[idx + 1 :]
             stripped = line.rstrip(b"\r\n")
             if stripped == b"":
-                if self._event_lines:
-                    ev = self._parse_event(self._event_lines)
-                    self._seq += 1
-                    ev.index = self._seq
-                    yield ev
+                ev = self._parse_event(self._event_lines)
+                self._seq += 1
+                ev.index = self._seq
+                yield ev
                 self._event_lines = []
             else:
                 self._event_lines.append(stripped)
@@ -157,13 +130,10 @@ def encode_sse_data(data: str) -> bytes:
     as per the SSE spec. Optionally include event and id.
     """
     out = bytearray()
-    if data == "":
-        out.extend(b"data:\n")
-    else:
-        for line in data.splitlines():
-            out.extend(b"data: ")
-            out.extend(line.encode("utf-8"))
-            out.extend(b"\n")
+    for line in data.splitlines():
+        out.extend(b"data: ")
+        out.extend(line.encode("utf-8"))
+        out.extend(b"\n")
     out.extend(b"\n")
     return bytes(out)
 
@@ -174,9 +144,7 @@ def encode_sse_json(obj: Any) -> bytes:
     return encode_sse_data(payload)
 
 
-def chunks_to_sse(
-    chunks: Iterable[Dict[str, Any]], *, add_done: bool = True
-) -> Iterator[bytes]:
+def chunks_to_sse(chunks: Iterable[Dict[str, Any]]) -> Iterator[bytes]:
     """Encode an iterator of JSON-able dicts into SSE byte messages.
 
     If add_done is True, a final [DONE] sentinel event is yielded.
@@ -188,48 +156,12 @@ def chunks_to_sse(
             buffer += sse
             yield sse
     finally:
-        if add_done:
-            sse = done_event_bytes()
-            buffer += sse
-            yield sse
+        sse = done_event_bytes()
+        buffer += sse
+        yield sse
         record_sse(buffer, "downstream_response")
 
 
 def done_event_bytes() -> bytes:
     """Return the SSE-encoded [DONE] sentinel as bytes."""
     return encode_sse_data("[DONE]")
-
-
-# Keeping for future use if we enable OpenAI backend
-# def sse_to_chunks(
-#     stream: Iterable[bytes], *, skip_done: bool = True, encoding: str = "utf-8"
-# ) -> Iterator[Dict[str, Any]]:
-#     """Convert an SSE byte-stream to an iterator of JSON dicts.
-#
-#     - Collects multi-line data fields per SSE spec
-#     - Uses event.json to avoid repeated json.loads
-#     - Skips the [DONE] sentinel by default
-#     """
-#     for ev in sse_to_events(stream, encoding=encoding):
-#         if skip_done and ev.is_done:
-#             continue
-#         if ev.json is None:
-#             continue
-#         yield ev.json
-#
-#
-# def sse_to_json_events(
-#     stream: Iterable[bytes], *, skip_done: bool = True, encoding: str = "utf-8"
-# ) -> Iterator[Tuple[Optional[str], Dict[str, Any]]]:
-#     """Yield (event, json_obj) pairs for events whose data parses as JSON.
-#
-#     Non-JSON events are skipped. The [DONE] sentinel is skipped if skip_done
-#     is True.
-#     """
-#     for ev in sse_to_events(stream, encoding=encoding):
-#         if skip_done and ev.is_done:
-#             continue
-#         obj = ev.json
-#         if obj is None:
-#             continue
-#         yield (ev.event, obj)
