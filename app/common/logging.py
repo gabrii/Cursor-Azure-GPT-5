@@ -2,19 +2,28 @@
 
 import json
 import os
+import re
 import time
 import uuid
 from typing import Any, Dict, List
 
 from flask import Request
-from rich.console import Console
+from rich import box
+from rich.console import Console, Group
 from rich.json import JSON
 from rich.markdown import Markdown
 from rich.padding import Padding
 from rich.panel import Panel
+from rich.table import Table
 
 # Global console instance for consistent logging across modules
 console = Console()
+ROLE_COLORS = {
+    "tool": "magenta",
+    "system": "yellow",
+    "user": "cyan",
+    "assistant": "light_green",
+}
 
 
 def should_redact() -> bool:
@@ -89,6 +98,13 @@ def _capture_request_details(req: Request, request_id: str) -> Dict[str, Any]:
     return details
 
 
+def escape_tags(text: str) -> str:
+    """Escapes xml-like tags in text so that they are visible when rendered as Markdown."""
+    return re.sub(
+        "(<[^<\n]+?)(>)", "\\1>`\n", re.sub("(<)([^>\n]+?>)", "\n`<\\2", text)
+    ).replace(">`\n\n\n`<", ">`\n\n`<")
+
+
 def log_request(req: Request) -> str:
     """Pretty-print a Flask request using Rich and return the request id."""
     request_id = uuid.uuid4().hex[:8]
@@ -100,52 +116,97 @@ def log_request(req: Request) -> str:
 
     # Rich pretty print of the full request details
     console.rule(f"[bold]Request #{rid}[/bold] — {method} {path}")
-    console.print(Panel.fit("Headers"))
-    console.print(details.get("headers"))
-    console.print(Panel.fit("Args / Form / JSON"))
     json_payload = details.get("json")
-    cleaned_json = json_payload
 
     # Remove verbose fields to log them separately
     cleaned_json = {
-        k: v
+        k: v if k not in {"tools", "messages"} else "Pretty-printed below ↓"
         for k, v in json_payload.items()
-        if k
-        not in {
-            "tools",
-        }
     }
     console.print_json(
-        data={
-            "query_args": details.get("query_args"),
-            "form": details.get("form"),
-            "json": cleaned_json,
-        }
+        data=cleaned_json,
+        indent=None,
     )
 
-    # Separate section for chat messages (role + content)
-    messages = []
+    tools = json_payload.get("tools")
+
+    for idx, tool in enumerate(tools, start=1):
+        table = Table(
+            caption="[italic]Required fields are marked with *[/italic]",
+            pad_edge=False,
+            box=box.SIMPLE,
+            leading=2,
+        )
+
+        table.add_column("Name", justify="right", style="cyan", no_wrap=True)
+        table.add_column("Description", style="white")
+
+        for tool in tools:
+            function = tool.get("function")
+            required = function.get("parameters").get("required")
+
+            params_table = Table(
+                show_header=False,
+                show_edge=True,
+                show_lines=True,
+                title="Parameters",
+                title_justify="left",
+                expand=True,
+                leading=3,
+            )
+            params_table.add_column("Name", justify="right", no_wrap=True, style="cyan")
+            params_table.add_column("Description", style="white")
+            for param_name, param_value in (
+                function.get("parameters").get("properties").items()
+            ):
+                param_type = param_value.get("type")
+                if param_type == "array":
+                    param_type += f"({param_value.get('items').get('type')})"
+                if param_name in required:
+                    param_type = f"[bold]*{param_type}[/bold]"
+                param_type = f"[magenta]{param_type}[/magenta]"
+                param_name = f"{param_name}"
+                params_table.add_row(
+                    Group(param_name, param_type),
+                    f"{param_value.get("description")}",
+                )
+            table.add_row(
+                f"{function.get('name')}",
+                Group(
+                    Markdown(escape_tags(function.get("description"))),
+                    params_table,
+                ),
+            )
+
+    # Chat messages (role + content)
     messages = json_payload.get("messages")
 
-    console.rule(f"Messages ({len(messages)})")
+    console.print(
+        Panel(
+            table,
+            title=f"[italic]{0}/{len(messages)}[/italic] [bold]<tools>[/bold]",
+            title_align="left",
+            subtitle="[bold]</tools>[/bold]",
+            subtitle_align="right",
+            border_style=ROLE_COLORS["tool"],
+        )
+    )
 
     for idx, msg in enumerate(messages, start=1):
         role = str(msg.get("role", ""))
         content_val = msg.get("content", "")
         name = msg.get("name")
         tool_call_id = msg.get("tool_call_id")
-        title = (
-            f"Message {idx}: {role}"
+        message_title = (
+            f"[italic]{idx}/{len(messages)}[/italic] [bold]<{role}>[/bold]"
             if not name
-            else f"Message {idx}: {role} ({name}) - {tool_call_id}"
+            else f"[italic]{idx}/{len(messages)}[/italic] [bold]<{role} name={name} id={tool_call_id}>[/bold]"
         )
-        console.rule(title)
-        console.print(
+        message_elements = []
+        message_elements.append(
             Padding(
                 Markdown(
-                    content_val.replace("<", "\n`<")
-                    .replace(">", ">`\n")
-                    .replace(">`\n\n\n`<", ">`\n\n`<")
+                    escape_tags(content_val),
                 ),
                 (1, 0),
             )
@@ -154,25 +215,48 @@ def log_request(req: Request) -> str:
         for tool_call in tool_calls:
             function = tool_call.get("function", {})
             arguments = function.get("arguments")
-            console.print(
-                Padding(
-                    Panel.fit(f"Tool call [italic]{tool_call.get('id')}[italic]"),
-                    (0, 4),
-                )
-            )
-            console.print(
-                Padding(
-                    f"[bold][magenta]{function.get('name')}[/magenta] ([/bold]",
-                    (0, 4),
-                )
+            tool_elements = []
+            tool_title = f"[bold]<tool_call id={tool_call.get('id')}>[/bold]"
+            tool_elements.append(
+                f"[bold][magenta]{function.get('name')}[/magenta] [blue]([/blue][/bold]",
             )
             try:
-                console.print(Padding(JSON(arguments), (0, 8)))
+                tool_elements.append(Padding(JSON(arguments), (0, 4)))
             except json.JSONDecodeError:
-                console.print("[red]Invalid JSON generated by the model:[/red]")
-                print(arguments)
-            console.print(Padding("[bold])[/bold]", (0, 4)))
-        if tool_calls:
-            console.print()
+                tool_elements.append(
+                    Padding("[red]Invalid JSON generated by the model:[/red]", (0, 4))
+                )
+                tool_elements.append(arguments)
+            tool_elements.append("[bold][blue])[/blue][/bold]")
+            message_elements.append(
+                Panel(
+                    Group(*tool_elements),
+                    title=tool_title,
+                    border_style=ROLE_COLORS["tool"],
+                )
+            )
+        message_style = ROLE_COLORS.get(role, "red")
+        message_subtitle = message_title[message_title.find("<") :].replace("<", "</")
+        message_subtitle = (
+            "[bold]"
+            + message_subtitle[
+                : (
+                    message_subtitle.find(" ")
+                    if " " in message_subtitle
+                    else message_subtitle.find(">")
+                )
+            ]
+            + ">[/bold]"
+        )
+        console.print(
+            Panel(
+                Group(*message_elements),
+                title=message_title,
+                title_align="left",
+                subtitle=message_subtitle,
+                subtitle_align="right",
+                border_style=message_style,
+            )
+        )
 
     return request_id

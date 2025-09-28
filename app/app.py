@@ -1,6 +1,7 @@
 """The app module, containing the app factory function."""
 
 from flask import Flask
+from rich.traceback import install as install_rich_traceback
 
 from . import commands
 from .blueprint import blueprint
@@ -29,3 +30,8 @@ def register_commands(app):
     """Register Click commands."""
     app.cli.add_command(commands.test)
     app.cli.add_command(commands.lint)
+
+
+def configure_logging(app):
+    """Configure logging."""
+    install_rich_traceback()
