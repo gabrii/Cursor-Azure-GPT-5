@@ -17,9 +17,6 @@ from rich.panel import Panel
 console = Console()
 
 
-# --- Request logging helpers ---
-
-
 def should_redact() -> bool:
     """Return True if sensitive values should be redacted in logs."""
     # Set LOG_REDACT=false to disable redaction (default True)
@@ -179,47 +176,3 @@ def log_request(req: Request) -> str:
             console.print()
 
     return request_id
-
-
-# --- SSE logging helpers, keeping for future use if we enable SSE logging ---
-# from .sse import SSEEvent
-# def _clean_payload(obj: Any) -> Any:
-#     """Default cleaning to reduce noisy fields in logs.
-
-#     - If obj is a dict, remove top-level 'tools'
-#     - If it contains a nested 'response' dict, also remove its 'tools'
-#     Returns a shallow-cleaned copy when applicable; otherwise returns the input unchanged.
-#     """
-#     if not isinstance(obj, dict):
-#         return obj
-#     # Shallow copy top-level
-#     cleaned = {k: v for k, v in obj.items()}
-#     if "tools" in cleaned:
-#         cleaned = {k: v for k, v in cleaned.items() if k != "tools"}
-#     resp = cleaned.get("response")
-#     if isinstance(resp, dict) and "tools" in resp:
-#         # Shallow copy nested response to drop tools
-#         new_resp = {k: v for k, v in resp.items() if k != "tools"}
-#         cleaned = {**cleaned, "response": new_resp}
-#     return cleaned
-
-
-# def log_event(ev: SSEEvent) -> None:
-#     """Pretty-print one SSE event using Rich.
-
-#     - Title reflects whether the event had an 'event' name and its index
-#     - If payload parses as JSON (ev.json), it is cleaned and printed as JSON; otherwise raw text is printed
-#     """
-#     obj = ev.json
-#     if obj is not None:
-#         title = (
-#             f"SSE JSON #{ev.index}" if not ev.event else f"SSE {ev.event} #{ev.index}"
-#         )
-#         console.print(Panel.fit(title))
-#         console.print_json(data=_clean_payload(obj))
-#     else:
-#         title = f"SSE data #{ev.index}"
-#         if ev.event:
-#             title = f"SSE {ev.event} #{ev.index}"
-#         console.print(Panel.fit(title))
-#         console.print(ev.data)

@@ -6,7 +6,6 @@ Flask==3.1.2
 
 # Logging
 rich==14.1.0
-loguru==0.7.3
 
 # Requests
 requests==2.32.5
