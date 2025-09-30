@@ -42,20 +42,13 @@ def test(coverage, filter):
 
 @click.command()
 @click.option(
-    "-f",
-    "--fix-imports",
-    default=True,
-    is_flag=True,
-    help="Fix imports using isort, before linting",
-)
-@click.option(
     "-c",
     "--check",
     default=False,
     is_flag=True,
     help="Don't make any changes to files, just confirm they are formatted correctly",
 )
-def lint(fix_imports, check):
+def lint(check):
     """Lint and check code style with black, flake8 and isort."""
     skip = [
         "requirements",
@@ -85,7 +78,6 @@ def lint(fix_imports, check):
     if check:
         isort_args.append("--check")
         black_args.append("--check")
-    if fix_imports:
-        execute_tool("Fixing import order", "isort", *isort_args)
+    execute_tool("Fixing import order", "isort", *isort_args)
     execute_tool("Formatting style", "black", *black_args)
     execute_tool("Checking code style", "flake8")

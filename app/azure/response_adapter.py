@@ -15,6 +15,9 @@ from flask import Response, stream_with_context
 
 from ..common.sse import chunks_to_sse, sse_to_events
 
+# Centralized events that should end a <think> block before handling
+THINKING_STOP_EVENTS = {"response.output_text.delta", "response.output_item.added"}
+
 
 class ResponseAdapter:
     """Handle post-request adaptation from Azure Responses API to Flask.
@@ -64,115 +67,84 @@ class ResponseAdapter:
     # ---- Event handlers (per SSE event) ----
     def _output_item__added(
         self, obj: Optional[Dict[str, Any]]
-    ) -> Iterable[Dict[str, Any]]:
-        """Handle response.output_item.added events and emit chunks as needed."""
+    ) -> Optional[Dict[str, Any]]:
+        """Handle response.output_item.added events and emit a single chunk."""
 
         item_type = obj.get("item", {}).get("type")
         if item_type == "reasoning":
             self._thinking = True
-            return [
-                self._build_completion_chunk(
-                    delta={"role": "assistant", "content": "<think>\n\n"}
-                )
-            ]
+            return self._build_completion_chunk(
+                delta={"role": "assistant", "content": "<think>\n\n"}
+            )
         if item_type == "function_call":
-            out: list[Dict[str, Any]] = []
-            if self._thinking:
-                out.append(
-                    self._build_completion_chunk(
-                        delta={"role": "assistant", "content": "</think>\n\n"}
-                    )
-                )
-                self._thinking = False
             self._tool_calls += 1
             name = obj.get("item", {}).get("name")
             arguments = obj.get("item", {}).get("arguments")
             call_id = obj.get("item", {}).get("call_id")
-            out.append(
-                self._build_completion_chunk(
-                    delta={
-                        "role": "assistant",
-                        "content": None,
-                        "tool_calls": [
-                            {
-                                "index": self._tool_calls - 1,
-                                "id": call_id or "",
-                                "type": "function",
-                                "function": {
-                                    "name": name or "",
-                                    "arguments": arguments or "",
-                                },
-                            }
-                        ],
-                    }
-                )
-            )
-            self._called_function = True
-            return out
-        return []
-
-    def _function_call_arguments__delta(
-        self, obj: Optional[Dict[str, Any]]
-    ) -> Iterable[Dict[str, Any]]:
-        """Handle response.function_call.arguments.delta events."""
-        out: list[Dict[str, Any]] = []
-        arguments_delta = obj.get("delta", "") if isinstance(obj, dict) else ""
-        out.append(
-            self._build_completion_chunk(
+            return self._build_completion_chunk(
                 delta={
+                    "role": "assistant",
+                    "content": None,
                     "tool_calls": [
                         {
                             "index": self._tool_calls - 1,
-                            "function": {"arguments": arguments_delta},
+                            "id": call_id or "",
+                            "type": "function",
+                            "function": {
+                                "name": name or "",
+                                "arguments": arguments or "",
+                            },
                         }
-                    ]
+                    ],
                 }
             )
+        return None
+
+    def _function_call_arguments__delta(
+        self, obj: Optional[Dict[str, Any]]
+    ) -> Optional[Dict[str, Any]]:
+        """Handle response.function_call.arguments.delta events."""
+        arguments_delta = obj.get("delta", "") if isinstance(obj, dict) else ""
+        return self._build_completion_chunk(
+            delta={
+                "tool_calls": [
+                    {
+                        "index": self._tool_calls - 1,
+                        "function": {"arguments": arguments_delta},
+                    }
+                ]
+            }
         )
-        return out
 
     def _reasoning_summary_text__delta(
         self, obj: Optional[Dict[str, Any]]
-    ) -> Iterable[Dict[str, Any]]:
-        """Handle reasoning.summary_text.delta events and emit text chunks."""
-        return [
-            self._build_completion_chunk(
-                delta={
-                    "role": "assistant",
-                    "content": (obj.get("delta", "") if isinstance(obj, dict) else ""),
-                }
-            )
-        ]
+    ) -> Optional[Dict[str, Any]]:
+        """Handle reasoning.summary_text.delta events and emit text chunk."""
+        return self._build_completion_chunk(
+            delta={
+                "role": "assistant",
+                "content": (obj.get("delta", "") if isinstance(obj, dict) else ""),
+            }
+        )
 
     def _reasoning_summary_text__done(
         self, obj: Optional[Dict[str, Any]]
-    ) -> Iterable[Dict[str, Any]]:
-        """Handle reasoning.summary_text.done events and close think block."""
-        return [
-            self._build_completion_chunk(delta={"role": "assistant", "content": "\n\n"})
-        ]
+    ) -> Optional[Dict[str, Any]]:
+        """Handle reasoning.summary_text.done events and close with blank line inside think block."""
+        return self._build_completion_chunk(
+            delta={"role": "assistant", "content": "\n\n"}
+        )
 
     def _output_text__delta(
         self, obj: Optional[Dict[str, Any]]
-    ) -> Iterable[Dict[str, Any]]:
-        """Handle response.output_text.delta events and emit text chunks."""
-        out: list[Dict[str, Any]] = []
-        if self._thinking:
-            out.append(
-                self._build_completion_chunk(
-                    delta={"role": "assistant", "content": "</think>\n\n"}
-                )
-            )
-            self._thinking = False
-        out.append(
-            self._build_completion_chunk(
-                delta={
-                    "role": "assistant",
-                    "content": (obj.get("delta", "") if isinstance(obj, dict) else ""),
-                }
-            )
+    ) -> Optional[Dict[str, Any]]:
+        """Handle response.output_text.delta events and emit text chunk."""
+        return self._build_completion_chunk(
+            delta={
+                "role": "assistant",
+                "content": (obj.get("delta", "") if isinstance(obj, dict) else ""),
+            }
         )
-        return out
 
     def adapt(self, upstream_resp: Any) -> Response:
         """Adapt an upstream Azure streaming response into SSE for Flask."""
@@ -196,10 +168,17 @@ class ResponseAdapter:
                         handler = getattr(self, handler_name, None)
                         if not handler:
                             continue
+
+                        # Centrally close <think> blocks whenever a stop event is seen
+                        if self._thinking and (ev.event in THINKING_STOP_EVENTS):
+                            yield self._build_completion_chunk(
+                                delta={"role": "assistant", "content": "</think>\n\n"}
+                            )
+                            self._thinking = False
+
                         res = handler(ev.json)
                         if res is not None:
-                            for chunk in res:
-                                yield chunk
+                            yield res
                 finally:
                     # Emit finish reason at the end of stream
                     if self._tool_calls > 0:
