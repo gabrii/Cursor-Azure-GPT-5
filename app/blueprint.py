@@ -8,7 +8,7 @@ from flask import Blueprint, jsonify, request
 
 from .auth import require_auth
 from .azure.adapter import AzureAdapter
-from .common.logging import log_request
+from .common.logging import log_request, console
 from .common.recording import (
     increment_last_recording,
     init_last_recording,
@@ -85,3 +85,16 @@ def models():
 def configuration_error(e: ConfigurationError):
     """Return a 400 JSON error payload for ValueError."""
     return e.get_response_content(), 400
+
+
+@blueprint.errorhandler(Exception)
+def exception_handler(e: Exception):
+    """Return a 500 JSON error payload for exceptions."""
+    try:
+        raise e
+    except Exception as e:
+        console.print_exception(show_locals=True)
+
+    import sys
+
+    sys.exit(1)
