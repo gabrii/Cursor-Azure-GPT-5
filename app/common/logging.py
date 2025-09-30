@@ -128,7 +128,8 @@ def log_request(req: Request) -> str:
         indent=None,
     )
 
-    tools = json_payload.get("tools")
+    messages = json_payload.get("messages", [])
+    tools = json_payload.get("tools", [])
 
     for idx, tool in enumerate(tools, start=1):
         table = Table(
@@ -178,19 +179,16 @@ def log_request(req: Request) -> str:
                 ),
             )
 
-    # Chat messages (role + content)
-    messages = json_payload.get("messages")
-
-    console.print(
-        Panel(
-            table,
-            title=f"[italic]{0}/{len(messages)}[/italic] [bold]<tools>[/bold]",
-            title_align="left",
-            subtitle="[bold]</tools>[/bold]",
-            subtitle_align="right",
-            border_style=ROLE_COLORS["tool"],
+        console.print(
+            Panel(
+                table,
+                title=f"[italic]{0}/{len(messages)}[/italic] [bold]<tools>[/bold]",
+                title_align="left",
+                subtitle="[bold]</tools>[/bold]",
+                subtitle_align="right",
+                border_style=ROLE_COLORS["tool"],
+            )
         )
-    )
 
     for idx, msg in enumerate(messages, start=1):
         role = str(msg.get("role", ""))
