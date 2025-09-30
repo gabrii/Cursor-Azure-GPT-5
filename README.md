@@ -5,7 +5,6 @@
 [![Pytest](https://img.shields.io/badge/Pytest-fff?logo=pytest&logoColor=000)](#)
 [![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=fff)](#)
 ![GitHub License](https://img.shields.io/github/license/gabrii/Cursor-Azure-GPT-5)
-![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/gabrii/Cursor-Azure-GPT-5/lint.yml?label=lint)
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/gabrii/Cursor-Azure-GPT-5/lint.yml?label=test)
 ![Codecov](https://img.shields.io/codecov/c/github/gabrii/Cursor-Azure-GPT-5)
 
@@ -26,8 +25,6 @@ This project originates from Cursor's lack of support for Azure models that are 
 
 Upcoming features:
 - Multimodal: Will be implemented as soon as better testing is in place and there is demand (PRs welcome).
-- Multiple models simultaneously: Even Cursor's Azure configuration only supports a single deployment at a time. It would be fairly easy to implement support for multiple models in this service, covering even more needs.
-- Full test coverage: See the [Testing](#testing) section for an explanation of the current low coverage.
 
 Feel free to create or vote on any [project issues](https://github.com/gabrii/Cursor-Azure-GPT-5/issues), and star the project to show your support.
 
@@ -59,6 +56,8 @@ Alternatively, you can pass them through the environment where you run the appli
 | `AZURE_TRUNCATION`  | Truncation strategy for long inputs.                                   | `auto`               |
 | `FLASK_ENV`         | Flask environment. Use `development` for dev or `production` for prod. | `production`         |
 | `RECORD_TRAFFIC`    | Toggle writing request/response traffic to `recordings/`               | `off`                |
+| `LOG_CONTEXT`       | Enable rich pretty-printing of request context to console.             | `on`                 |
+| `LOG_COMPLETION`    | Enable logging of completion responses (not yet implemented).          | `on`                 |
 
 </details>
 
