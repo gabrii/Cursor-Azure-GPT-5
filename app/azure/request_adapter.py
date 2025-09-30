@@ -10,6 +10,8 @@ from typing import Any, Dict, List
 
 from flask import Request, current_app
 
+from ..exceptions import CursorConfigurationError, ServiceConfigurationError
+
 
 class RequestAdapter:
     """Handle pre-request adaptation for the Azure Responses API.
@@ -43,11 +45,9 @@ class RequestAdapter:
 
         for m in messages:
             role = m.get("role")
-            c = m.get("content")
+            content = m.get("content")
             if role in {"system", "developer"}:
-                text = c
-                if text:
-                    instructions_parts.append(text)
+                instructions_parts.append(content)
                 continue
             # For user/assistant/tools as inputs
             if role == "tool":
@@ -55,19 +55,18 @@ class RequestAdapter:
 
                 item = {
                     "type": "function_call_output",
-                    "output": c,
+                    "output": content,
                     "status": "completed",
                     "call_id": call_id,
                 }
                 input_items.append(item)
             else:
-                text = c
                 item = {
                     "role": role or "user",
                     "content": [
                         {
                             "type": "input_text" if role == "user" else "output_text",
-                            "text": text,
+                            "text": content,
                         },
                     ],
                 }
@@ -87,26 +86,22 @@ class RequestAdapter:
 
         instructions = "\n\n".join(instructions_parts) if instructions_parts else None
         return {
-            "input": input_items if input_items else None,
             "instructions": instructions,
+            "input": input_items if input_items else None,
         }
 
     def _transform_tools_for_responses(self, tools: Any) -> Any:
         out: List[Dict[str, Any]] = []
-        for t in tools:
-            ttype = t.get("type")
-            if ttype == "function" and isinstance(t.get("function"), dict):
-                f = t["function"]
-                transformed: Dict[str, Any] = {
-                    "type": "function",
-                    "name": f.get("name"),
-                }
-                if "description" in f:
-                    transformed["description"] = f["description"]
-                if "parameters" in f:
-                    transformed["parameters"] = f["parameters"]
-                transformed["strict"] = False
-                out.append(transformed)
+        for tool in tools:
+            function = tool.get("function")
+            transformed: Dict[str, Any] = {
+                "type": "function",
+                "name": function.get("name"),
+                "description": function.get("description"),
+                "parameters": function.get("parameters"),
+                "strict": False,
+            }
+            out.append(transformed)
         return out
 
     # ---- Main adaptation (always streaming completions-like) ----
@@ -134,39 +129,31 @@ class RequestAdapter:
 
         # Map Chat/Completions to Responses (always streaming)
         messages = payload.get("messages") or []
-        tools_in = payload.get("tools") or []
-        tool_choice_in = payload.get("tool_choice")
-        prompt_cache_key = payload.get("user") or payload.get("prompt_cache_key")
 
-        mapped = (
+        responses_body = (
             self._messages_to_responses_input_and_instructions(messages)
             if isinstance(messages, list)
             else {"input": None, "instructions": None}
         )
 
-        responses_body: Dict[str, Any] = {}
-        if mapped.get("instructions"):
-            responses_body["instructions"] = mapped["instructions"]
-        if mapped.get("input") is not None:
-            responses_body["input"] = mapped["input"]
         responses_body["model"] = settings["AZURE_DEPLOYMENT"]
 
         # Transform tools and tool choice
-        if tools_in:
-            responses_body["tools"] = self._transform_tools_for_responses(tools_in)
-        if tool_choice_in is not None:
-            responses_body["tool_choice"] = tool_choice_in
+        responses_body["tools"] = self._transform_tools_for_responses(
+            payload.get("tools", [])
+        )
+        responses_body["tool_choice"] = payload.get("tool_choice")
 
-        if prompt_cache_key is not None:
-            responses_body["prompt_cache_key"] = prompt_cache_key
+        responses_body["prompt_cache_key"] = payload.get("user")
 
         # Always streaming
         responses_body["stream"] = True
 
         reasoning_effort = inbound_model.replace("gpt-", "").lower()
         if reasoning_effort not in {"high", "medium", "low", "minimal"}:
-            raise ValueError(
-                "Model name must be either gpt-high, gpt-medium, gpt-low, or gpt-minimal"
+            raise CursorConfigurationError(
+                "Model name must be either gpt-high, gpt-medium, gpt-low, or gpt-minimal."
+                f"\n\nGot: {inbound_model}"
             )
 
         responses_body["reasoning"] = {
@@ -177,6 +164,11 @@ class RequestAdapter:
         # but allowing it for now to be able to test it on other models
         if settings["AZURE_SUMMARY_LEVEL"] in {"auto", "detailed", "concise"}:
             responses_body["reasoning"]["summary"] = settings["AZURE_SUMMARY_LEVEL"]
+        else:
+            raise ServiceConfigurationError(
+                "AZURE_SUMMARY_LEVEL must be either auto, detailed, or concise."
+                f"\n\nGot: {settings['AZURE_SUMMARY_LEVEL']}"
+            )
 
         # No need to pass verbosity if it's set to medium, as it's the model's default
         if settings["AZURE_VERBOSITY_LEVEL"] in {"low", "high"}:

@@ -4,11 +4,7 @@ This module defines the application blueprint, configures logging, and
 forwards incoming HTTP requests to the configured backend implementation.
 """
 
-import sys
-
 from flask import Blueprint, jsonify, request
-from loguru import logger
-from rich.traceback import install as install_rich_traceback
 
 from .auth import require_auth
 from .azure.adapter import AzureAdapter
@@ -18,29 +14,9 @@ from .common.recording import (
     init_last_recording,
     record_payload,
 )
+from .exceptions import ConfigurationError
 
 blueprint = Blueprint("blueprint", __name__)
-
-# Pretty tracebacks for easier debugging
-install_rich_traceback(show_locals=False)
-
-
-# Configure Loguru to print colorful logs to stdout
-logger.remove()
-logger.add(
-    sys.stdout,
-    colorize=True,
-    enqueue=False,
-    backtrace=False,
-    diagnose=False,
-    format=(
-        "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> "
-        "| <level>{level: <8}</level> "
-        "| <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> "
-        "- <level>{message}</level>"
-    ),
-)
-
 
 ALL_METHODS = [
     "GET",
@@ -103,3 +79,9 @@ def models():
             ],
         }
     )
+
+
+@blueprint.errorhandler(ConfigurationError)
+def configuration_error(e: ConfigurationError):
+    """Return a 400 JSON error payload for ValueError."""
+    return e.get_response_content(), 400

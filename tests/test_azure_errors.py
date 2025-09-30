@@ -21,7 +21,7 @@ Check "azure_response" for the error details:
 \t        "foo": "bar"
 \t    },
 \t    "request_body": {
-\t        "instructions": "REDACTE...",
+\t        "instructions": "REDACTED...",
 \t        "input": "...redacted 2 input items...",
 \t        "model": "gpt-5",
 \t        "tools": "...redacted 11 tools...",
@@ -59,7 +59,7 @@ Check "azure_response" for the error details:
 \t        "error": "Bad API Key or whatever"
 \t    },
 \t    "request_body": {
-\t        "instructions": "REDACTE...",
+\t        "instructions": "REDACTED...",
 \t        "input": "...redacted 2 input items...",
 \t        "model": "gpt-5",
 \t        "tools": "...redacted 11 tools...",
@@ -95,7 +95,7 @@ Check "azure_response" for the error details:
 \t    "azure_status_code": 500,
 \t    "azure_response": "Internal Server Error",
 \t    "request_body": {
-\t        "instructions": "REDACTE...",
+\t        "instructions": "REDACTED...",
 \t        "input": "...redacted 2 input items...",
 \t        "model": "gpt-5",
 \t        "tools": "...redacted 11 tools...",

@@ -101,8 +101,13 @@ class ReplyBase:
 
     def assert_upstream_request(self, mock: Any) -> None:
         """Assert upstream request matches the recorded upstream request."""
-        expected_upstream_request_json = json.loads(self.expected_upstream_request_body)
-        assert mock.last_request.json() == expected_upstream_request_json
+        if self.expected_upstream_request_body:
+            expected_upstream_request_json = json.loads(
+                self.expected_upstream_request_body
+            )
+            assert mock.last_request.json() == expected_upstream_request_json
+        else:
+            assert mock.last_request is None
 
     def assert_downstream_response(self, response) -> None:
         """Assert downstream response matches the recorded downstream response."""

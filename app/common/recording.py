@@ -12,7 +12,7 @@ import re
 from functools import wraps
 from typing import Any, Dict
 
-from flask import current_app, has_app_context
+from flask import current_app
 
 RECORDINGS_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "recordings")
 
@@ -25,9 +25,7 @@ def config_bypass(func):
 
     @wraps(func)
     def wrapper(*args, **kwargs):
-        enabled = False
-        if has_app_context():
-            enabled = current_app.config["RECORD_TRAFFIC"]
+        enabled = current_app.config["RECORD_TRAFFIC"]
         if not enabled:
             return None
         return func(*args, **kwargs)

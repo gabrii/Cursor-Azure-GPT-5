@@ -64,19 +64,16 @@ class AzureAdapter:
             resp_content = resp.text
 
         body = request_kwargs.get("json", {})
-        if "instructions" in body:
-            body["instructions"] = body["instructions"][:7] + "..."
-
-        if "tools" in body:
-            body["tools"] = f"...redacted {len(body['tools'])} tools..."
-
-        if "input" in body:
-            body["input"] = f"...redacted {len(body['input'])} input items..."
-
-        if "prompt_cache_key" in body:
-            body["prompt_cache_key"] = re.sub(
-                r"(...)(.*)(...)", "\\1***\\3", body["prompt_cache_key"]
-            )
+        body["instructions"] = body.get("instructions", "no instructions")[:16] + "..."
+        body["tools"] = f"...redacted {len(body.get('tools', 'no tools'))} tools..."
+        body["input"] = (
+            f"...redacted {len(body.get('input', 'no input'))} input items..."
+        )
+        body["prompt_cache_key"] = re.sub(
+            r"(...)(.*)(...)",
+            "\\1***\\3",
+            body.get("prompt_cache_key", "no prompt_cache_key"),
+        )
         report = {
             "endpoint": re.sub(
                 r"(//.)(.*?)(.\.)", "\\1***\\3", request_kwargs.get("url")

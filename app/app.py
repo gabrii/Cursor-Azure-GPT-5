@@ -1,9 +1,7 @@
 """The app module, containing the app factory function."""
 
-import logging
-import sys
-
 from flask import Flask
+from rich.traceback import install as install_rich_traceback
 
 from . import commands
 from .blueprint import blueprint
@@ -16,9 +14,9 @@ def create_app(config_object="app.settings"):
     """
     app = Flask(__name__.split(".")[0])
     app.config.from_object(config_object)
+    configure_logging(app)
     register_commands(app)
     register_blueprints(app)
-    configure_logger(app)
     return app
 
 
@@ -34,8 +32,6 @@ def register_commands(app):
     app.cli.add_command(commands.lint)
 
 
-def configure_logger(app):
-    """Configure loggers."""
-    handler = logging.StreamHandler(sys.stdout)
-    if not app.logger.handlers:
-        app.logger.addHandler(handler)
+def configure_logging(app):
+    """Configure logging."""
+    install_rich_traceback()

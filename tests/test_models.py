@@ -8,11 +8,11 @@ class TestModels:
     """Models."""
 
     def test_models_endpoint_returns_400(self, testapp):
-        """Ensure /models endpoint returns HTTP 400."""
+        """Ensure /models endpoint returns HTTP 400 wihtout auth."""
         testapp.get("/models", status=400)
 
     def test_models_endpoint_returns_200(self, testapp):
-        """Ensure /models endpoint returns HTTP 400."""
+        """Ensure /models endpoint returns HTTP 400 with auth."""
         response = testapp.get(
             "/models",
             status=200,
@@ -25,5 +25,5 @@ class TestModels:
         assert '"gpt-minimal"' in content
 
     def test_health_endpoint_returns_200(self, testapp):
-        """Ensure /health endpoint returns HTTP 200."""
+        """Ensure /health endpoint returns HTTP 200 without auth."""
         testapp.get("/health", status=200)
