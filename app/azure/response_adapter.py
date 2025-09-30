@@ -11,9 +11,12 @@ import time
 from string import ascii_letters, digits
 from typing import Any, Dict, Iterable, Optional
 
-from flask import Response, stream_with_context
+from flask import Response, current_app, stream_with_context
+from rich.live import Live
 
+from ..common.logging import console, create_message_panel
 from ..common.sse import chunks_to_sse, sse_to_events
+from ..exceptions import ClientClosedConnection
 
 # Centralized events that should end a <think> block before handling
 THINKING_STOP_EVENTS = {"response.output_text.delta", "response.output_item.added"}
@@ -158,10 +161,27 @@ class ResponseAdapter:
             self._tool_calls = 0
 
             def gen_dicts() -> Iterable[Dict[str, Any]]:
-                try:
+                # Initialize message object for completion logging
+                completion_msg: Dict[str, Any] = {
+                    "role": "assistant",
+                    "content": "",
+                    "tool_calls": [],
+                }
+
+                events = 0
+                with Live(
+                    None,
+                    console=console,
+                    refresh_per_second=2,
+                ) as live:  # update 4 times a second to feel fluid
                     for ev in sse_to_events(
                         upstream_resp.iter_content(chunk_size=8192)
                     ):
+                        if current_app.config["LOG_COMPLETION"]:
+                            if events > 1:
+                                live.update(create_message_panel(completion_msg, 1, 1))
+                            events += 1
+
                         handler_name = "_" + (ev.event or "").replace(
                             "response.", ""
                         ).replace(".", "__")
@@ -176,19 +196,61 @@ class ResponseAdapter:
                             )
                             self._thinking = False
 
+                            if current_app.config["LOG_COMPLETION"]:
+                                completion_msg["content"] += "</think>\n\n"
+
                         res = handler(ev.json)
                         if res is not None:
                             yield res
-                finally:
-                    # Emit finish reason at the end of stream
+
+                            if current_app.config["LOG_COMPLETION"]:
+                                delta = res.get("choices", [{}])[0].get("delta", {})
+                                content = delta.get("content")
+
+                                if content is not None:
+                                    # Append content to the message
+                                    completion_msg["content"] += content
+                                else:
+                                    # Handle tool calls
+                                    tool_calls_delta = delta.get("tool_calls", [])
+                                    for tool_call_delta in tool_calls_delta:
+                                        function = tool_call_delta.get("function", {})
+                                        name = function.get("name")
+                                        arguments = function.get("arguments", "")
+
+                                        if name:
+                                            # New tool call - add to the list
+                                            completion_msg["tool_calls"].append(
+                                                {
+                                                    "id": tool_call_delta.get("id", ""),
+                                                    "type": "function",
+                                                    "function": {
+                                                        "name": name,
+                                                        "arguments": arguments,
+                                                    },
+                                                }
+                                            )
+                                        else:
+                                            # Append arguments to the last tool call
+                                            completion_msg["tool_calls"][-1][
+                                                "function"
+                                            ]["arguments"] += arguments
+
                     if self._tool_calls > 0:
                         yield self._build_completion_chunk(finish_reason="tool_calls")
                     else:
                         yield self._build_completion_chunk(finish_reason="stop")
+                    if current_app.config["LOG_COMPLETION"]:
+                        live.update(create_message_panel(completion_msg, 1, 1))
 
-            # Wrap as SSE with [DONE]
             try:
                 yield from chunks_to_sse(gen_dicts())
+            except GeneratorExit:
+                # Downstream client closed the connection mid-stream
+                # Translate to a clearer exception; upstream will be closed in finally
+                raise ClientClosedConnection(
+                    "Client closed connection during streaming response"
+                ) from None
             finally:
                 upstream_resp.close()
 
