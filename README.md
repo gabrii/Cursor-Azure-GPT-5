@@ -27,7 +27,6 @@ This project originates from Cursor's lack of support for Azure models that are 
 Upcoming features:
 - Multimodal: Will be implemented as soon as better testing is in place and there is demand (PRs welcome).
 - Multiple models simultaneously: Even Cursor's Azure configuration only supports a single deployment at a time. It would be fairly easy to implement support for multiple models in this service, covering even more needs.
-- Full test coverage: See the [Testing](#testing) section for an explanation of the current low coverage.
 
 Feel free to create or vote on any [project issues](https://github.com/gabrii/Cursor-Azure-GPT-5/issues), and star the project to show your support.
 
