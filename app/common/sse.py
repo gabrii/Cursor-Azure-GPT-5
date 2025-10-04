@@ -9,6 +9,7 @@ This module provides helpers to decode and encode SSE streams, including:
 import json
 from dataclasses import dataclass
 from typing import Any, Dict, Iterable, Iterator, List, Optional
+
 from requests.exceptions import ChunkedEncodingError
 
 from .recording import record_sse
@@ -174,10 +175,10 @@ def chunks_to_sse(chunks: Iterable[Dict[str, Any]]) -> Iterator[bytes]:
             sse = encode_sse_json(obj)
             buffer += sse
             yield sse
-    finally:
         sse = done_event_bytes()
         buffer += sse
         yield sse
+    finally:
         record_sse(buffer, "downstream_response")
 
 

@@ -14,6 +14,7 @@ from typing import Any, Dict, Iterable, Optional
 from flask import Response, stream_with_context
 
 from ..common.sse import chunks_to_sse, sse_to_events
+from ..exceptions import ClientClosedConnection
 
 # Centralized events that should end a <think> block before handling
 THINKING_STOP_EVENTS = {"response.output_text.delta", "response.output_item.added"}
@@ -158,37 +159,38 @@ class ResponseAdapter:
             self._tool_calls = 0
 
             def gen_dicts() -> Iterable[Dict[str, Any]]:
-                try:
-                    for ev in sse_to_events(
-                        upstream_resp.iter_content(chunk_size=8192)
-                    ):
-                        handler_name = "_" + (ev.event or "").replace(
-                            "response.", ""
-                        ).replace(".", "__")
-                        handler = getattr(self, handler_name, None)
-                        if not handler:
-                            continue
+                for ev in sse_to_events(upstream_resp.iter_content(chunk_size=8192)):
+                    handler_name = "_" + (ev.event or "").replace(
+                        "response.", ""
+                    ).replace(".", "__")
+                    handler = getattr(self, handler_name, None)
+                    if not handler:
+                        continue
 
-                        # Centrally close <think> blocks whenever a stop event is seen
-                        if self._thinking and (ev.event in THINKING_STOP_EVENTS):
-                            yield self._build_completion_chunk(
-                                delta={"role": "assistant", "content": "</think>\n\n"}
-                            )
-                            self._thinking = False
+                    # Centrally close <think> blocks whenever a stop event is seen
+                    if self._thinking and (ev.event in THINKING_STOP_EVENTS):
+                        yield self._build_completion_chunk(
+                            delta={"role": "assistant", "content": "</think>\n\n"}
+                        )
+                        self._thinking = False
 
-                        res = handler(ev.json)
-                        if res is not None:
-                            yield res
-                finally:
-                    # Emit finish reason at the end of stream
-                    if self._tool_calls > 0:
-                        yield self._build_completion_chunk(finish_reason="tool_calls")
-                    else:
-                        yield self._build_completion_chunk(finish_reason="stop")
+                    res = handler(ev.json)
+                    if res is not None:
+                        yield res
 
-            # Wrap as SSE with [DONE]
+                if self._tool_calls > 0:
+                    yield self._build_completion_chunk(finish_reason="tool_calls")
+                else:
+                    yield self._build_completion_chunk(finish_reason="stop")
+
             try:
                 yield from chunks_to_sse(gen_dicts())
+            except GeneratorExit:
+                # Downstream client closed the connection mid-stream
+                # Translate to a clearer exception; upstream will be closed in finally
+                raise ClientClosedConnection(
+                    "Client closed connection during streaming response"
+                ) from None
             finally:
                 upstream_resp.close()
 
