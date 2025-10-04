@@ -8,7 +8,7 @@ from flask import Blueprint, jsonify, request
 
 from .auth import require_auth
 from .azure.adapter import AzureAdapter
-from .common.logging import log_request, console
+from .common.logging import console, log_request
 from .common.recording import (
     increment_last_recording,
     init_last_recording,
@@ -92,7 +92,7 @@ def exception_handler(e: Exception):
     """Return a 500 JSON error payload for exceptions."""
     try:
         raise e
-    except Exception as e:
+    except Exception:  # noqa: F841
         console.print_exception(show_locals=True)
 
     import sys

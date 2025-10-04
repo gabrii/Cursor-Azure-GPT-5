@@ -9,6 +9,7 @@ This module provides helpers to decode and encode SSE streams, including:
 import json
 from dataclasses import dataclass
 from typing import Any, Dict, Iterable, Iterator, List, Optional
+from requests.exceptions import ChunkedEncodingError
 
 from .recording import record_sse
 
@@ -38,6 +39,8 @@ class SSEEvent:
 
         Returns None if the data is empty, invalid JSON, or the [DONE] sentinel.
         """
+        if not self.data:
+            print("Got empty data:", repr(self.data))
         text = (self.data or "").strip()
         val: Optional[Any] = json.loads(text)
         return val
@@ -72,6 +75,8 @@ class SSEDecoder:
                     .decode(self.encoding, errors="replace")
                 )
             else:
+                if not line.startswith(b"data:"):
+                    print("Got non-data line:", repr(line))
                 data_parts.append(line[5:].strip())
 
         data_text = (
@@ -83,6 +88,8 @@ class SSEDecoder:
 
     def feed(self, chunk: bytes) -> Iterator[SSEEvent]:
         """Feed a new bytes chunk and yield any complete parsed events."""
+        if not chunk:
+            print("Got empty chunk!")
         self.buffer += chunk
         self.full_buffer += chunk
         while True:
@@ -93,6 +100,8 @@ class SSEDecoder:
             self.buffer = self.buffer[idx + 1 :]
             stripped = line.rstrip(b"\r\n")
             if stripped == b"":
+                if not self._event_lines:
+                    print("Got empty event lines!")
                 ev = self._parse_event(self._event_lines)
                 self._seq += 1
                 ev.index = self._seq
@@ -118,8 +127,16 @@ def sse_to_events(
 ) -> Iterator[SSEEvent]:
     """Convert an SSE byte-stream into parsed SSEEvent objects."""
     decoder = SSEDecoder(encoding=encoding)
-    for chunk in stream:
-        yield from decoder.feed(chunk)
+    try:
+        for chunk in stream:
+            yield from decoder.feed(chunk)
+    except ChunkedEncodingError:
+        print("Got ChunkedEncodingError! Here is the buffer so far:")
+        print(decoder.full_buffer)
+        import sys
+
+        sys.exit(1)
+        raise
     yield from decoder.end_of_input()
 
 
@@ -130,6 +147,8 @@ def encode_sse_data(data: str) -> bytes:
     as per the SSE spec. Optionally include event and id.
     """
     out = bytearray()
+    if not data:
+        print("Got empty data to encode!")
     for line in data.splitlines():
         out.extend(b"data: ")
         out.extend(line.encode("utf-8"))
