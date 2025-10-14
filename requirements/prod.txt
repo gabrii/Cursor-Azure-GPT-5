@@ -5,7 +5,7 @@ click>=7.0
 Flask==3.1.2
 
 # Logging
-rich==14.1.0
+rich==14.2.0
 
 # Requests
 requests==2.32.5
