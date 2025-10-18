@@ -155,10 +155,10 @@ def chunks_to_sse(chunks: Iterable[Dict[str, Any]]) -> Iterator[bytes]:
             sse = encode_sse_json(obj)
             buffer += sse
             yield sse
-    finally:
         sse = done_event_bytes()
         buffer += sse
         yield sse
+    finally:
         record_sse(buffer, "downstream_response")
 
 
