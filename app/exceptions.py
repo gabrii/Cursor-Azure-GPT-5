@@ -23,3 +23,10 @@ class CursorConfigurationError(ConfigurationError):
     """Exception raised for configuration errors in Cursor configuration."""
 
     preamble = "Cursor configuration error, check your Cursor settings."
+
+
+class ClientClosedConnection(Exception):  # noqa: N818
+    """Raised when the downstream client closes the HTTP connection mid-stream.
+
+    This helps distinguish client disconnects from other server-side errors.
+    """

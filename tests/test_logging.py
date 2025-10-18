@@ -50,3 +50,45 @@ def test_should_not_refact(mocker):
     }
     redacted_headers = redact_headers(headers)
     assert redacted_headers == headers
+
+
+class TestLogContextEnabled(ReplyBase):
+    """Test that log_request is called when LOG_CONTEXT=True."""
+
+    def modify_settings(self, app) -> None:
+        """Ensure LOG_CONTEXT is enabled."""
+        app.config["LOG_CONTEXT"] = True
+
+    def test(self, testapp, requests_mock, mocker):
+        """Test that log_request is called when LOG_CONTEXT is True."""
+        log_request_mock = mocker.patch("app.blueprint.log_request")
+        super().test(testapp, requests_mock)
+        log_request_mock.assert_called_once()
+
+
+class TestLogContextDisabled(ReplyBase):
+    """Test that log_request is NOT called when LOG_CONTEXT=False."""
+
+    def modify_settings(self, app) -> None:
+        """Disable LOG_CONTEXT."""
+        app.config["LOG_CONTEXT"] = False
+
+    def test(self, testapp, requests_mock, mocker):
+        """Test that log_request is NOT called when LOG_CONTEXT is False."""
+        log_request_mock = mocker.patch("app.blueprint.log_request")
+        super().test(testapp, requests_mock)
+        log_request_mock.assert_not_called()
+
+
+class TestLogCompletionDisabled(ReplyBase):
+    """Test that logging of create_message_panel is NOT called when LOG_COMPLETION=False."""
+
+    def modify_settings(self, app) -> None:
+        """Disable LOG_COMPLETION."""
+        app.config["LOG_COMPLETION"] = False
+
+    def test(self, testapp, requests_mock, mocker):
+        """Test that Rich.Live.update is NOT called when LOG_COMPLETION is False."""
+        live_update_mock = mocker.patch("rich.live.Live.update")
+        super().test(testapp, requests_mock)
+        live_update_mock.assert_not_called()

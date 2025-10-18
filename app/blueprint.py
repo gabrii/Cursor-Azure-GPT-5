@@ -4,7 +4,7 @@ This module defines the application blueprint, configures logging, and
 forwards incoming HTTP requests to the configured backend implementation.
 """
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, current_app, jsonify, request
 
 from .auth import require_auth
 from .azure.adapter import AzureAdapter
@@ -46,7 +46,8 @@ def catch_all(path: str):
     implementation, returning the backend's response. If forwarding fails,
     returns a 502 JSON error payload.
     """
-    log_request(request)
+    if current_app.config.get("LOG_CONTEXT"):
+        log_request(request)
     init_last_recording()
     increment_last_recording()
     record_payload(request.json, "downstream_request")

@@ -14,6 +14,8 @@ env.read_env()
 ENV = env.str("FLASK_ENV", default="production")
 DEBUG = ENV == "development"
 RECORD_TRAFFIC = env.bool("RECORD_TRAFFIC", False)
+LOG_CONTEXT = env.bool("LOG_CONTEXT", True)
+LOG_COMPLETION = env.bool("LOG_COMPLETION", True)
 
 SERVICE_API_KEY = env.str("SERVICE_API_KEY", "change-me")
 

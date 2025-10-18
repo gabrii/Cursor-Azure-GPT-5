@@ -1,0 +1,16 @@
+---
+description:
+globs:
+alwaysApply: true
+---
+# Running tests
+
+After finishing any big code changes, and before yielding to the user, run with your terminal tool the following comand:
+
+```
+source .venv/bin/activate && pytest -k ""
+```
+
+You don't need to preface it with /bin/bash -c, nor add | cat at the end. Just run it as is.
+
+If you want to run linting and tests, perform 2 parallel function calls
