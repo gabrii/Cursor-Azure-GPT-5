@@ -16,4 +16,4 @@ gunicorn>=19.9.0
 supervisor==4.3.0
 
 # Environment variable parsing
-environs==14.4.0
+environs==14.5.0
