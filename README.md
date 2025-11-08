@@ -15,6 +15,25 @@ A service that allows Cursor to use Azure GPT-5 deployments by:
 
 This project originates from Cursor's lack of support for Azure models that are only served through the **Responses API**. It will hopefully become obsolete as Cursor continues to improve its model support.
 
+> [!IMPORTANT]
+> **Azure** now supports the **Completions API** for the models `gpt-5`, `gpt-5-mini`, and `gpt-5-nano`.
+> 
+> They can now be used directly in Cursor, but without the ability to change the _Reasoning Effort_ / _Verbosity_ / _Summary Level_. To do so, you can still use this project.
+>
+> The models `gpt-5-pro` and `gpt-5-codex` remain available only through the **Responses API**, but work great with this project (see list of specific model limitations in the next section).
+
+## Supported Models
+
+The entire gpt-5 series is supported, although `gpt-5-pro` and `gpt-5-codex` have some limitations on the reasoning effort / verbosity values they accept: 
+
+| Model Name | Reasoning Effort | Verbosity | 
+|---|---|---|
+| gpt-5 | ✅ `minimal` `low` `medium` `high` | ✅ `low` `medium` `high` |
+| gpt-5-mini | ✅ `minimal` `low` `medium` `high` | ✅ `low` `medium` `high` |
+| gpt-5-nano | ✅ `minimal` `low` `medium` `high` | ✅ `low` `medium` `high` |
+| gpt-5-pro | ⚠️ _~~`minimal`~~ ~~`low`~~ ~~`medium`~~_ `high` | ✅ `low` `medium` `high` | 
+| gpt-5-codex |⚠️  _~~`minimal`~~_ `low` `medium` `high` | ⚠️ _~~`low`~~_ `medium` _~~`high`~~_ | 
+
 ## Feature highlights
 
 - Switching between `high`/`medium`/`low` reasoning effort levels by selecting different models in Cursor.
