@@ -92,8 +92,31 @@ class RequestAdapter:
 
     def _transform_tools_for_responses(self, tools: Any) -> Any:
         out: List[Dict[str, Any]] = []
-        for tool in tools:
+        if not isinstance(tools, list):
+            current_app.logger.debug(
+                "Skipping tool transformation because tools payload is not a list: %r",
+                tools,
+            )
+            return out
+
+        for idx, tool in enumerate(tools):
+            if not isinstance(tool, dict):
+                current_app.logger.warning(
+                    "Skipping tool at index %s because it is not a dict (got %s).",
+                    idx,
+                    type(tool).__name__,
+                )
+                continue
+
             function = tool.get("function")
+            if not isinstance(function, dict):
+                current_app.logger.warning(
+                    "Skipping tool at index %s because function payload is missing or invalid: %r",
+                    idx,
+                    function,
+                )
+                continue
+
             transformed: Dict[str, Any] = {
                 "type": "function",
                 "name": function.get("name"),
