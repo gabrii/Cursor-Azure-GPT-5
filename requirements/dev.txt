@@ -2,7 +2,7 @@
 -r prod.txt
 
 # Testing
-pytest==8.4.2
+pytest==9.0.1
 pytest-cov==7.0.0
 WebTest==3.0.7
 requests-mock==1.12.1
