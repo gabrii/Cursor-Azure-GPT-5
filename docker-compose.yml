@@ -6,17 +6,6 @@ x-default-volumes: &default_volumes
     - ./:/app
 
 services:
-  flask-dev:
-    build:
-      context: .
-      target: development
-      args:
-        <<: *build_args
-    image: "app-development"
-    ports:
-      - "8080:5000"
-    <<: *default_volumes
-
   flask-prod:
     build:
       context: .
@@ -25,7 +14,7 @@ services:
         <<: *build_args
     image: "app-production"
     ports:
-      - "8080:5000"
+      - "9090:5000"
     environment:
       FLASK_ENV: production
       FLASK_DEBUG: 0
