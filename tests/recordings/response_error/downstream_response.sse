@@ -1,0 +1,6 @@
+data: {"id":"chatcmpl-KogZjSdcCS0nceNEoJOKpvxP","object":"chat.completion.chunk","created":1763739042,"model":"gpt-medium","choices":[{"index":0,"delta":{"role":"assistant","content":"Azure raised a 'server_error' error with the following message:\n\n\n_**An error occurred while processing your request. You can retry your request, or contact us through an Azure support request at: https://go.microsoft.com/fwlink/?linkid=2213926 if the error persists. Please include the request ID 713be208-602c-456e-b2b9-71f3c793875d in your message.**_\n\n\nThis might be a genuine error on Azure's side and not a problem of Cursor-Azure-GPT-5."},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-KogZjSdcCS0nceNEoJOKpvxP","object":"chat.completion.chunk","created":1763739042,"model":"gpt-medium","choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}
+
+data: [DONE]
+

@@ -116,3 +116,13 @@ Check "azure_response" for the error details:
 If the issue persists, report it to:
 \thttps://github.com/gabrii/Cursor-Azure-GPT-5/issues
 Including all the details above"""
+
+
+class TestCompletionError(ReplyBase):
+    """Test a successful HTTP request but with a streamed response.error event."""
+
+    def modify_settings(self, app) -> None:
+        """Set gpt-5.1-codex model, which is currently causing this issue."""
+        app.config["AZURE_DEPLOYMENT"] = "gpt-5.1-codex"
+
+    recording = "response_error"
