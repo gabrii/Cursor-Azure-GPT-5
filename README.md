@@ -26,13 +26,18 @@ This project originates from Cursor's lack of support for Azure models that are 
 
 The entire gpt-5 series is supported, although `gpt-5-pro` and `gpt-5-codex` have some limitations on the reasoning effort / verbosity values they accept: 
 
-| Model Name | Reasoning Effort | Verbosity | 
-|---|---|---|
-| gpt-5 | ✅ `minimal` `low` `medium` `high` | ✅ `low` `medium` `high` |
-| gpt-5-mini | ✅ `minimal` `low` `medium` `high` | ✅ `low` `medium` `high` |
-| gpt-5-nano | ✅ `minimal` `low` `medium` `high` | ✅ `low` `medium` `high` |
-| gpt-5-pro | ⚠️ _~~`minimal`~~ ~~`low`~~ ~~`medium`~~_ `high` | ✅ `low` `medium` `high` | 
-| gpt-5-codex |⚠️  _~~`minimal`~~_ `low` `medium` `high` | ⚠️ _~~`low`~~_ `medium` _~~`high`~~_ | 
+| Model Name         | Reasoning Effort                                | Verbosity                           |
+| ------------------ | ----------------------------------------------- | ----------------------------------- |
+| gpt-5              | ✅ `minimal` `low` `medium` `high`               | ✅ `low` `medium` `high`             |
+| gpt-5.1            | ✅ `minimal` `low` `medium` `high`               | ✅ `low` `medium` `high`             |
+| gpt-5-mini         | ✅ `minimal` `low` `medium` `high`               | ✅ `low` `medium` `high`             |
+| gpt-5-nano         | ✅ `minimal` `low` `medium` `high`               | ✅ `low` `medium` `high`             |
+| gpt-5-pro          | ⚠️ _~~`minimal`~~ ~~`low`~~ ~~`medium`~~_ `high` | ✅ `low` `medium` `high`             |
+| gpt-5-codex        | ⚠️  _~~`minimal`~~_ `low` `medium` `high`        | ⚠️ _~~`low`~~_ `medium` _~~`high`~~_ |
+| gpt-5.1-codex      | 🛑 Error on Azure's end                          |                                     |
+| gpt-5.1-codex-mini | 🛑 Error on Azure's end                          |                                     |
+
+The `gpt-5.1` series is partially supported, although `gpt-5.1-codex` and `gpt-5.1-codex-mini` are just broken in Azure. 
 
 ## Feature highlights
 
@@ -41,9 +46,6 @@ The entire gpt-5 series is supported, although `gpt-5-pro` and `gpt-5-codex` hav
 - Displaying _reasoning summaries_ in Cursor natively, like any other reasoning model.
 - Production-ready, so you can share the service among different users in an organization.
 - When running from a terminal, [rich](https://github.com/Textualize/rich) logging of the model's context on every request, including Markdown rendering, syntax highlighting, tool calls/outputs, and more.
-
-Upcoming features:
-- Multimodal: Will be implemented as soon as better testing is in place and there is demand (PRs welcome).
 
 Feel free to create or vote on any [project issues](https://github.com/gabrii/Cursor-Azure-GPT-5/issues), and star the project to show your support.
 
