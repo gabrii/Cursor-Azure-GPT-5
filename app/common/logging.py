@@ -205,7 +205,7 @@ def log_request(req: Request) -> str:
     )
 
     messages = json_payload.get("messages", [])
-    tools = json_payload.get("tools", [])
+    tools = json_payload.get("tools", []) or []
 
     # Render tools section once (no duplicate panels)
     table = Table(
