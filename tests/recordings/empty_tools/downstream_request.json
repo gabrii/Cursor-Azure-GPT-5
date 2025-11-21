@@ -1,0 +1,22 @@
+{
+  "model": "gpt-minimal",
+  "temperature": 0,
+  "user": "REDACTED",
+  "messages": [
+    {
+      "role": "system",
+      "content": "REDACTED"
+    },
+    {
+      "role": "user",
+      "content": "REDACTED"
+    },
+    {
+      "role": "user",
+      "content": "REDACTED"
+    }
+  ],
+  "tools": null,
+  "tool_choice": "auto",
+  "stream": true
+}

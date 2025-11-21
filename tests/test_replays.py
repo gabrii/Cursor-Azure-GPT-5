@@ -50,3 +50,9 @@ class TestReplyVerbosityLevelHigh(ReplyBase):
         app.config["AZURE_VERBOSITY_LEVEL"] = "high"
 
     recording = "verbosity_level"
+
+
+class TestReplyWithEmptyTools(ReplyBase):
+    """Reply with the 'tools' key not present in the downstream request."""
+
+    recording = "empty_tools"

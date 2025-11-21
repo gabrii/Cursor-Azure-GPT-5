@@ -1,0 +1,37 @@
+{
+  "instructions": "REDACTED",
+  "input": [
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "input_text",
+          "text": "REDACTED"
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "input_text",
+          "text": "REDACTED"
+        }
+      ]
+    }
+  ],
+  "model": "gpt-5",
+  "tools": [],
+  "tool_choice": "auto",
+  "prompt_cache_key": "REDACTED",
+  "stream": true,
+  "reasoning": {
+    "effort": "minimal",
+    "summary": "detailed"
+  },
+  "store": false,
+  "stream_options": {
+    "include_obfuscation": false
+  },
+  "truncation": "auto"
+}
