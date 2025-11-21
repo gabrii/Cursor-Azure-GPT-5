@@ -149,6 +149,22 @@ class ResponseAdapter:
             }
         )
 
+    def _failed(self, obj: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+        """Handle response.failed events and emit a single chunk."""
+        error = obj.get("response", {}).get("error", {})
+        return self._build_completion_chunk(
+            delta={
+                "role": "assistant",
+                "content": "Azure raised a '"
+                + error.get("code", "")
+                + "' error with the following message:\n\n\n"
+                + "_**"
+                + error.get("message", "")
+                + "**_\n\n\n"
+                "This might be a genuine error on Azure's side and not a problem of Cursor-Azure-GPT-5.",
+            }
+        )
+
     def adapt(self, upstream_resp: Any) -> Response:
         """Adapt an upstream Azure streaming response into SSE for Flask."""
 
