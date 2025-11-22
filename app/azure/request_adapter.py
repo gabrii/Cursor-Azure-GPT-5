@@ -183,7 +183,9 @@ class RequestAdapter:
 
         responses_body["store"] = False
         responses_body["stream_options"] = {"include_obfuscation": False}
-        responses_body["truncation"] = settings["AZURE_TRUNCATION"]
+
+        if settings["AZURE_TRUNCATION"] == "auto":
+            responses_body["truncation"] = settings["AZURE_TRUNCATION"]
 
         request_kwargs: Dict[str, Any] = {
             "method": "POST",
