@@ -24,20 +24,19 @@ This project originates from Cursor's lack of support for Azure models that are 
 
 ## Supported Models
 
-The entire gpt-5 series is supported, although `gpt-5-pro` and `gpt-5-codex` have some limitations on the reasoning effort / verbosity values they accept: 
+The entire gpt-5 series is supported, although some models have some limitations on the reasoning effort / verbosity / truncation values they accept: 
 
-| Model Name         | Reasoning Effort                                | Verbosity                           |
-| ------------------ | ----------------------------------------------- | ----------------------------------- |
-| gpt-5              | ✅ `minimal` `low` `medium` `high`               | ✅ `low` `medium` `high`             |
-| gpt-5.1            | ✅ `minimal` `low` `medium` `high`               | ✅ `low` `medium` `high`             |
-| gpt-5-mini         | ✅ `minimal` `low` `medium` `high`               | ✅ `low` `medium` `high`             |
-| gpt-5-nano         | ✅ `minimal` `low` `medium` `high`               | ✅ `low` `medium` `high`             |
-| gpt-5-pro          | ⚠️ _~~`minimal`~~ ~~`low`~~ ~~`medium`~~_ `high` | ✅ `low` `medium` `high`             |
-| gpt-5-codex        | ⚠️  _~~`minimal`~~_ `low` `medium` `high`        | ⚠️ _~~`low`~~_ `medium` _~~`high`~~_ |
-| gpt-5.1-codex      | 🛑 Error on Azure's end                          |                                     |
-| gpt-5.1-codex-mini | 🛑 Error on Azure's end                          |                                     |
+| Model Name         | Reasoning Effort                                | Verbosity                           | Truncation                |
+| ------------------ | ----------------------------------------------- | ----------------------------------- | ------------------------- |
+| gpt-5              | ✅ `minimal` `low` `medium` `high`               | ✅ `low` `medium` `high`             | ✅  `auto` `disabled`      |
+| gpt-5.1            | ✅ `minimal` `low` `medium` `high`               | ✅ `low` `medium` `high`             | ✅  `auto` `disabled`      |
+| gpt-5-mini         | ✅ `minimal` `low` `medium` `high`               | ✅ `low` `medium` `high`             | ✅  `auto` `disabled`      |
+| gpt-5-nano         | ✅ `minimal` `low` `medium` `high`               | ✅ `low` `medium` `high`             | ✅  `auto` `disabled`      |
+| gpt-5-pro          | ⚠️ _~~`minimal`~~ ~~`low`~~ ~~`medium`~~_ `high` | ✅ `low` `medium` `high`             | ✅  `auto` `disabled`      |
+| gpt-5-codex        | ⚠️  _~~`minimal`~~_ `low` `medium` `high`        | ⚠️ _~~`low`~~_ `medium` _~~`high`~~_ | ✅  `auto` `disabled`      |
+| gpt-5.1-codex      | ⚠️  _~~`minimal`~~_ `low` `medium` `high`        | ⚠️ _~~`low`~~_ `medium` _~~`high`~~_ | ⚠️ _~~`auto`~~_ `disabled` |
+| gpt-5.1-codex-mini | ⚠️  _~~`minimal`~~_ `low` `medium` `high`        | ⚠️ _~~`low`~~_ `medium` _~~`high`~~_ | ⚠️ _~~`auto`~~_ `disabled` |
 
-The `gpt-5.1` series is partially supported, although `gpt-5.1-codex` and `gpt-5.1-codex-mini` are just broken in Azure. 
 
 ## Feature highlights
 
@@ -65,6 +64,7 @@ Make a copy of the file `.env.example` as `.env` and update the following flags 
 | `AZURE_DEPLOYMENT`      | Name of the Azure model deployment to use.                                                                                     | `gpt-5`     |
 | `AZURE_VERBOSITY_LEVEL` | Hint the model to be more or less expansive in its replies. Use either `high` / `medium` / `low`                               | `medium`    |
 | `AZURE_SUMMARY_LEVEL`   | Set to `none` to disable summaries. You might have to disable them if your organization hasn't been approved for this feature. | `detailed`  |
+| `AZURE_TRUNCATION`      | Truncation strategy for long inputs. Either `auto` or `disabled`                                                               | `disabled`  |
 
 Alternatively, you can pass them through the environment where you run the application.
 
@@ -74,7 +74,6 @@ Alternatively, you can pass them through the environment where you run the appli
 | Flag                | Description                                                            | Default              |
 | ------------------- | ---------------------------------------------------------------------- | -------------------- |
 | `AZURE_API_VERSION` | Azure OpenAI Responses API version to call.                            | `2025-04-01-preview` |
-| `AZURE_TRUNCATION`  | Truncation strategy for long inputs.                                   | `auto`               |
 | `FLASK_ENV`         | Flask environment. Use `development` for dev or `production` for prod. | `production`         |
 | `RECORD_TRAFFIC`    | Toggle writing request/response traffic to `recordings/`               | `off`                |
 | `LOG_CONTEXT`       | Enable rich pretty-printing of request context to console.             | `on`                 |
