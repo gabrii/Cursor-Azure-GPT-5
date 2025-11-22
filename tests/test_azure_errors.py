@@ -35,8 +35,7 @@ Check "azure_response" for the error details:
 \t        "store": false,
 \t        "stream_options": {
 \t            "include_obfuscation": false
-\t        },
-\t        "truncation": "auto"
+\t        }
 \t    }
 \t}
 If the issue persists, report it to:
@@ -73,8 +72,7 @@ Check "azure_response" for the error details:
 \t        "store": false,
 \t        "stream_options": {
 \t            "include_obfuscation": false
-\t        },
-\t        "truncation": "auto"
+\t        }
 \t    }
 \t}
 If the issue persists, report it to:
@@ -109,8 +107,7 @@ Check "azure_response" for the error details:
 \t        "store": false,
 \t        "stream_options": {
 \t            "include_obfuscation": false
-\t        },
-\t        "truncation": "auto"
+\t        }
 \t    }
 \t}
 If the issue persists, report it to:
@@ -122,7 +119,8 @@ class TestCompletionError(ReplyBase):
     """Test a successful HTTP request but with a streamed response.error event."""
 
     def modify_settings(self, app) -> None:
-        """Set gpt-5.1-codex model, which is currently causing this issue."""
+        """Set gpt-5.1-codex model and auto truncation, which is currently causing this issue."""
         app.config["AZURE_DEPLOYMENT"] = "gpt-5.1-codex"
+        app.config["AZURE_TRUNCATION"] = "auto"
 
     recording = "response_error"

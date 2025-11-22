@@ -431,6 +431,5 @@
   "store": false,
   "stream_options": {
     "include_obfuscation": false
-  },
-  "truncation": "auto"
+  }
 }

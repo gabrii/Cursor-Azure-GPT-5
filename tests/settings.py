@@ -11,7 +11,7 @@ AZURE_API_KEY = "test-api-key"
 AZURE_DEPLOYMENT = "gpt-5"
 AZURE_SUMMARY_LEVEL = "detailed"
 AZURE_VERBOSITY_LEVEL = "medium"
-AZURE_TRUNCATION = "auto"
+AZURE_TRUNCATION = "disabled"
 
 RECORD_TRAFFIC = False
 LOG_CONTEXT = True
