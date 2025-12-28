@@ -3,7 +3,7 @@ profile = "black"
 
 [tool.coverage.run]
 source = ["app"]
-omit = ["tests/*", "autoapp.py"]
+omit = ["tests/*", "autoapp.py", "scripts/*"]
 
 [tool.flake8]
 ignore = ["D401", "D202", "E226", "E302", "E41", "W503", "E203"]
