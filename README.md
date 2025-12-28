@@ -15,6 +15,9 @@ A service that allows Cursor to use Azure GPT-5 deployments by:
 
 This project originates from Cursor's lack of support for Azure models that are only served through the **Responses API**. It will hopefully become obsolete as Cursor continues to improve its model support.
 
+> [!WARNING]
+> You still need an active paid Cursor subscription to be able to use this project.
+
 > [!IMPORTANT]
 > **Azure** now supports the **Completions API** for the models `gpt-5`, `gpt-5-mini`, and `gpt-5-nano`.
 > 
@@ -22,26 +25,32 @@ This project originates from Cursor's lack of support for Azure models that are 
 >
 > The models `gpt-5-pro` and `gpt-5-codex` remain available only through the **Responses API**, but work great with this project (see list of specific model limitations in the next section).
 
+
 ## Supported Models
 
-The entire gpt-5 series is supported, although some models have some limitations on the reasoning effort / verbosity / truncation values they accept: 
+The entire gpt-5 series is supported, although some models have some limitations on the reasoning effort / verbosity / truncation / summary values they accept: 
 
-| Model Name         | Reasoning Effort                                | Verbosity                           | Truncation                |
-| ------------------ | ----------------------------------------------- | ----------------------------------- | ------------------------- |
-| gpt-5              | ✅ `minimal` `low` `medium` `high`               | ✅ `low` `medium` `high`             | ✅  `auto` `disabled`      |
-| gpt-5.1            | ✅ `minimal` `low` `medium` `high`               | ✅ `low` `medium` `high`             | ✅  `auto` `disabled`      |
-| gpt-5-mini         | ✅ `minimal` `low` `medium` `high`               | ✅ `low` `medium` `high`             | ✅  `auto` `disabled`      |
-| gpt-5-nano         | ✅ `minimal` `low` `medium` `high`               | ✅ `low` `medium` `high`             | ✅  `auto` `disabled`      |
-| gpt-5-pro          | ⚠️ _~~`minimal`~~ ~~`low`~~ ~~`medium`~~_ `high` | ✅ `low` `medium` `high`             | ✅  `auto` `disabled`      |
-| gpt-5-codex        | ⚠️  _~~`minimal`~~_ `low` `medium` `high`        | ⚠️ _~~`low`~~_ `medium` _~~`high`~~_ | ✅  `auto` `disabled`      |
-| gpt-5.1-codex      | ⚠️  _~~`minimal`~~_ `low` `medium` `high`        | ⚠️ _~~`low`~~_ `medium` _~~`high`~~_ | ⚠️ _~~`auto`~~_ `disabled` |
-| gpt-5.1-codex-mini | ⚠️  _~~`minimal`~~_ `low` `medium` `high`        | ⚠️ _~~`low`~~_ `medium` _~~`high`~~_ | ⚠️ _~~`auto`~~_ `disabled` |
+| Variable   | Value      | 5.2 | 5.2-chat | 5.1 | 5.1-codex | 5.1-codex-mini | 5.1-codex-max | 5   | 5-nano | 5-mini | 5-pro | 5-codex |
+| ---------- | ---------- | --- | -------- | --- | --------- | -------------- | ------------- | --- | ------ | ------ | ----- | ------- |
+| Reasoning  | `minimal`  | ❌   | ❌        | ❌   | ❌         | ❌              | ❌             | ✅   | ✅      | ✅      | ❌     | ❌       |
+|            | `low`      | ✅   | ❌        | ✅   | ✅         | ✅              | ✅             | ✅   | ✅      | ✅      | ❌     | ✅       |
+|            | `medium`   | ✅   | ✅        | ✅   | ✅         | ✅              | ✅             | ✅   | ✅      | ✅      | ❌     | ✅       |
+|            | `high`     | ✅   | ❌        | ✅   | ✅         | ✅              | ✅             | ✅   | ✅      | ✅      | ✅     | ✅       |
+| Verbosity  | `low`      | ✅   | ❌        | ✅   | ❌         | ❌              | ❌             | ✅   | ✅      | ✅      | ❌     | ❌       |
+|            | `medium`   | ✅   | ✅        | ✅   | ✅         | ✅              | ✅             | ✅   | ✅      | ✅      | ❌     | ✅       |
+|            | `high`     | ✅   | ❌        | ✅   | ❌         | ❌              | ❌             | ✅   | ✅      | ✅      | ❌     | ❌       |
+| Truncation | `auto`     | ✅   | ✅        | ✅   | ✅         | ✅              | ✅             | ✅   | ✅      | ✅      | ❌     | ✅       |
+|            | `disabled` | ✅   | ✅        | ✅   | ✅         | ✅              | ✅             | ✅   | ✅      | ✅      | ❌     | ✅       |
+| Summary    | `auto`     | ✅   | ✅        | ✅   | ✅         | ✅              | ✅             | ✅   | ✅      | ✅      | ❌     | ✅       |
+|            | `detailed` | ✅   | ✅        | ✅   | ✅         | ✅              | ✅             | ✅   | ✅      | ✅      | ❌     | ✅       |
+|            | `concise`  | ✅   | ✅        | ✅   | ❌         | ❌              | ❌             | ✅   | ✅      | ✅      | ❌     | ❌       |
 
+_(This matrix is automatically generated, and updated after every new model release.)_
 
 ## Feature highlights
 
-- Switching between `high`/`medium`/`low` reasoning effort levels by selecting different models in Cursor.
-- Configuring different _reasoning summary_ levels.
+- Switching between `high`/`medium`/`low`/`minimal` reasoning effort levels by selecting different models in Cursor.
+- Configuring different _reasoning summary_ levels (`auto`, `detailed`, `concise`).
 - Displaying _reasoning summaries_ in Cursor natively, like any other reasoning model.
 - Production-ready, so you can share the service among different users in an organization.
 - When running from a terminal, [rich](https://github.com/Textualize/rich) logging of the model's context on every request, including Markdown rendering, syntax highlighting, tool calls/outputs, and more.
@@ -118,28 +127,7 @@ In addition to updating the OpenAI Base URL, you need to:
 
 2. Ensure the toggles for both options are **on**, as shown in the previous image.
 
-3. Add the custom models called exactly `gpt-high`, `gpt-medium`, and `gpt-low`, as shown in the previous image. You can also create `gpt-minimal` for minimal reasoning effort. You don't need to remove other models.
-
-<details>
-<summary>Additional steps if you face this error:
-    <img src="assets/cursor_invalid_model.jpg" alt="The model does not work with your current plan or api key" width="100%">
-</summary>
-
-> This is a bug on Cursor's side when custom models edit files in **∞ Agent** mode. Regardless of the model, and even if `edit_file` is working correctly, Cursor may show this pop-up and interrupt generation after the first `edit_file` function call.
->
-> This only happens when using model names Cursor has not allowlisted or prepared for, such as `gpt-high`. However, we can't use the standard model names such as `gpt-5-high` because Cursor does not route those to custom OpenAI Base URLs.
->
-> For now, this bug can be bypassed by using the Custom Modes beta
->
-> In the near future, either the bug in Agent mode will be fixed or those two remaining functions will be added to Custom Modes—or, even better, Azure support will improve enough to render this project obsolete.
-
-4. Enable Custom Modes Beta in _Cursor Settings > Chat_: ![Azure not working in Cursor](assets/cursor_chat_config.jpg)
-
-5. Create a custom mode:
-
-    <img src="assets/cursor_custom_mode.gif" alt="Fix for cursor BYOK from azure" width="200">
-
-</details>
+3. Add the custom models called exactly `gpt-high`, `gpt-medium`, and `gpt-low`, as shown in the previous image. You can also create `gpt-minimal` for minimal reasoning effort for models that support it. You don't need to remove other models.
 
 ### 4. Running the service
 
