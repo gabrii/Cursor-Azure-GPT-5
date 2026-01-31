@@ -6,6 +6,7 @@ requests into Azure Responses API request parameters.
 
 from __future__ import annotations
 
+import json
 from typing import Any, Dict, List
 
 from flask import Request, current_app
@@ -43,9 +44,39 @@ class RequestAdapter:
         instructions_parts: List[str] = []
         input_items: List[Dict[str, Any]] = []
 
+        def normalize_content(content: Any) -> str:
+            if content is None:
+                return ""
+            if isinstance(content, str):
+                return content
+            if isinstance(content, list):
+                parts: List[str] = []
+                for part in content:
+                    if isinstance(part, str):
+                        parts.append(part)
+                        continue
+                    if isinstance(part, dict):
+                        text = part.get("text")
+                        if text is not None:
+                            parts.append(str(text))
+                        elif "content" in part:
+                            parts.append(str(part.get("content")))
+                        else:
+                            parts.append(json.dumps(part, ensure_ascii=False))
+                        continue
+                    parts.append(str(part))
+                return "\n".join([p for p in parts if p])
+            if isinstance(content, dict):
+                if "text" in content:
+                    return str(content.get("text"))
+                if "content" in content:
+                    return str(content.get("content"))
+                return json.dumps(content, ensure_ascii=False)
+            return str(content)
+
         for m in messages:
             role = m.get("role")
-            content = m.get("content")
+            content = normalize_content(m.get("content"))
             if role in {"system", "developer"}:
                 instructions_parts.append(content)
                 continue

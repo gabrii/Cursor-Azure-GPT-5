@@ -105,6 +105,38 @@ def escape_tags(text: str) -> str:
     ).replace(">`\n\n\n`<", ">`\n\n`<")
 
 
+def normalize_message_content(content: Any) -> str:
+    """Normalize message content for logging output."""
+    if content is None:
+        return ""
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts: List[str] = []
+        for part in content:
+            if isinstance(part, str):
+                parts.append(part)
+                continue
+            if isinstance(part, dict):
+                text = part.get("text")
+                if text is not None:
+                    parts.append(str(text))
+                elif "content" in part:
+                    parts.append(str(part.get("content")))
+                else:
+                    parts.append(json.dumps(part, ensure_ascii=False))
+                continue
+            parts.append(str(part))
+        return "\n".join([p for p in parts if p])
+    if isinstance(content, dict):
+        if "text" in content:
+            return str(content.get("text"))
+        if "content" in content:
+            return str(content.get("content"))
+        return json.dumps(content, ensure_ascii=False)
+    return str(content)
+
+
 def create_message_panel(msg: Dict[str, Any], idx: int, total: int) -> Panel:
     """Create a Rich Panel for displaying a message.
 
@@ -128,9 +160,7 @@ def create_message_panel(msg: Dict[str, Any], idx: int, total: int) -> Panel:
     message_elements = []
     message_elements.append(
         Padding(
-            Markdown(
-                escape_tags(content_val),
-            ),
+            Markdown(escape_tags(normalize_message_content(content_val))),
             (1, 0),
         )
     )
