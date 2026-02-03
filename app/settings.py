@@ -14,6 +14,7 @@ env.read_env()
 ENV = env.str("FLASK_ENV", default="production")
 DEBUG = ENV == "development"
 RECORD_TRAFFIC = env.bool("RECORD_TRAFFIC", False)
+RECORD_REDACT = env.bool("RECORD_REDACT", False)
 LOG_CONTEXT = env.bool("LOG_CONTEXT", True)
 LOG_COMPLETION = env.bool("LOG_COMPLETION", True)
 

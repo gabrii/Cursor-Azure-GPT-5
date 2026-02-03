@@ -92,6 +92,11 @@ def anonimize(data: str) -> str:
     return data
 
 
+def should_redact_recordings() -> bool:
+    """Return True if recordings should be redacted."""
+    return current_app.config.get("RECORD_REDACT", False)
+
+
 def _recording_file_path(name: str, ext: str) -> str:
     dir_path = os.path.join(RECORDINGS_DIR, str(__LAST_RECORDING_INDEX))
     os.makedirs(dir_path, exist_ok=True)
@@ -105,7 +110,8 @@ def record_payload(payload: Dict[str, Any], name: str) -> None:
     file_path = _recording_file_path(name, "json")
     with open(file_path, "w") as f:
         data = json.dumps(payload, indent=2)
-        data = anonimize(data)
+        if should_redact_recordings():
+            data = anonimize(data)
         f.write(data)
 
 
@@ -115,5 +121,8 @@ def record_sse(sse: bytes, name: str) -> None:
 
     file_path = _recording_file_path(name, "sse")
     with open(file_path, "wb") as f:
-        sse = anonimize(sse.decode("utf-8")).encode("utf-8")
+        sse_text = sse.decode("utf-8")
+        if should_redact_recordings():
+            sse_text = anonimize(sse_text)
+        sse = sse_text.encode("utf-8")
         f.write(sse)

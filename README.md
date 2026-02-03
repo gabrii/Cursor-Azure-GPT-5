@@ -85,6 +85,7 @@ Alternatively, you can pass them through the environment where you run the appli
 | `AZURE_API_VERSION` | Azure OpenAI Responses API version to call.                            | `2025-04-01-preview` |
 | `FLASK_ENV`         | Flask environment. Use `development` for dev or `production` for prod. | `production`         |
 | `RECORD_TRAFFIC`    | Toggle writing request/response traffic to `recordings/`               | `off`                |
+| `RECORD_REDACT`     | Redact sensitive fields in recordings                                 | `off`                |
 | `LOG_CONTEXT`       | Enable rich pretty-printing of request context to console.             | `on`                 |
 | `LOG_COMPLETION`    | Enable logging of completion responses (not yet implemented).          | `on`                 |
 
@@ -254,7 +255,7 @@ docker compose run --rm manage lint --check
 
 To make the generation of test fixtures easier, the `RECORD_TRAFFIC` flag has been added, which creates files with all the incoming/outgoing traffic between this service and Cursor/Azure in the directory `recordings/`
 
-To avoid violating Cursor's intellectual property, a redaction layer removes any sensitive data, such as: system prompts, tool names, tool descriptions, and any context containing scaffolding from Cursor's prompt-building service.
+If you enable `RECORD_REDACT`, a redaction layer removes any sensitive data, such as: system prompts, tool names, tool descriptions, and any context containing scaffolding from Cursor's prompt-building service.
 
 Therefore, recorded traffic can be published under `tests/recordings/` to be used as test fixtures while remaining MIT-licensed.
 
