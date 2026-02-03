@@ -64,7 +64,17 @@ class AzureAdapter:
             resp_content = resp.text
 
         body = request_kwargs.get("json", {})
-        body["instructions"] = body.get("instructions", "no instructions")[:16] + "..."
+
+        # Redact potentially large/sensitive request fields safely.
+        # `instructions` can be `None` (or non-string), so coerce before slicing.
+        instructions_val = body.get("instructions")
+        if instructions_val is None:
+            instructions_text = "no instructions"
+        elif isinstance(instructions_val, str):
+            instructions_text = instructions_val
+        else:
+            instructions_text = str(instructions_val)
+        body["instructions"] = instructions_text[:16] + "..."
         body["tools"] = f"...redacted {len(body.get('tools', 'no tools'))} tools..."
         body["input"] = (
             f"...redacted {len(body.get('input', 'no input'))} input items..."

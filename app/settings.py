@@ -14,6 +14,7 @@ env.read_env()
 ENV = env.str("FLASK_ENV", default="production")
 DEBUG = ENV == "development"
 RECORD_TRAFFIC = env.bool("RECORD_TRAFFIC", False)
+RECORD_REDACT = env.bool("RECORD_REDACT", False)
 LOG_CONTEXT = env.bool("LOG_CONTEXT", True)
 LOG_COMPLETION = env.bool("LOG_COMPLETION", True)
 
@@ -22,6 +23,8 @@ SERVICE_API_KEY = env.str("SERVICE_API_KEY", "change-me")
 AZURE_BASE_URL = env.str("AZURE_BASE_URL", "change_me").rstrip("/")
 AZURE_API_KEY = env.str("AZURE_API_KEY", "change_me")
 AZURE_DEPLOYMENT = env.str("AZURE_DEPLOYMENT") or "gpt-5"
+AZURE_DEPLOYMENT_MAP = env.str("AZURE_DEPLOYMENT_MAP", "")
+AZURE_REASONING_EFFORT = env.str("AZURE_REASONING_EFFORT") or "medium"
 
 AZURE_API_VERSION = env.str("AZURE_API_VERSION") or "2025-04-01-preview"
 AZURE_SUMMARY_LEVEL = env.str("AZURE_SUMMARY_LEVEL") or "detailed"

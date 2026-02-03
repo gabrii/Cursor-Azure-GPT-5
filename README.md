@@ -71,11 +71,25 @@ Make a copy of the file `.env.example` as `.env` and update the following flags 
 | `AZURE_BASE_URL`        | Your Azure OpenAI endpoint base URL (no trailing slash), e.g. `https://<resource>.openai.azure.com`.                           | required    |
 | `AZURE_API_KEY`         | Azure OpenAI API key.                                                                                                          | required    |
 | `AZURE_DEPLOYMENT`      | Name of the Azure model deployment to use.                                                                                     | `gpt-5`     |
+| `AZURE_DEPLOYMENT_MAP`  | JSON map of Cursor model name -> Azure deployment name (enables multiple deployments).                                         | empty       |
+| `AZURE_REASONING_EFFORT`| Default reasoning effort for mapped models.                                                                                    | `medium`    |
 | `AZURE_VERBOSITY_LEVEL` | Hint the model to be more or less expansive in its replies. Use either `high` / `medium` / `low`                               | `medium`    |
 | `AZURE_SUMMARY_LEVEL`   | Set to `none` to disable summaries. You might have to disable them if your organization hasn't been approved for this feature. | `detailed`  |
 | `AZURE_TRUNCATION`      | Truncation strategy for long inputs. Either `auto` or `disabled`                                                               | `disabled`  |
 
 Alternatively, you can pass them through the environment where you run the application.
+
+To use multiple Azure deployments, set `AZURE_DEPLOYMENT_MAP` to a JSON object that maps the model name you add in Cursor to the Azure deployment name. Example:
+
+```json
+{
+  "gpt-5.2": "gpt-5-2-deployment",
+  "gpt-5.2-codex": "gpt-5-2-codex-deployment",
+  "gpt-5.1-codex-max": "gpt-5-1-codex-max-deployment"
+}
+```
+
+Mapped models use `AZURE_REASONING_EFFORT` for the reasoning effort unless you select a `gpt-high`/`gpt-medium`/`gpt-low`/`gpt-minimal` model.
 
 <details>
 <summary>Optional Configuration</summary>
@@ -85,6 +99,7 @@ Alternatively, you can pass them through the environment where you run the appli
 | `AZURE_API_VERSION` | Azure OpenAI Responses API version to call.                            | `2025-04-01-preview` |
 | `FLASK_ENV`         | Flask environment. Use `development` for dev or `production` for prod. | `production`         |
 | `RECORD_TRAFFIC`    | Toggle writing request/response traffic to `recordings/`               | `off`                |
+| `RECORD_REDACT`     | Redact sensitive fields in recordings                                 | `off`                |
 | `LOG_CONTEXT`       | Enable rich pretty-printing of request context to console.             | `on`                 |
 | `LOG_COMPLETION`    | Enable logging of completion responses (not yet implemented).          | `on`                 |
 
@@ -254,7 +269,7 @@ docker compose run --rm manage lint --check
 
 To make the generation of test fixtures easier, the `RECORD_TRAFFIC` flag has been added, which creates files with all the incoming/outgoing traffic between this service and Cursor/Azure in the directory `recordings/`
 
-To avoid violating Cursor's intellectual property, a redaction layer removes any sensitive data, such as: system prompts, tool names, tool descriptions, and any context containing scaffolding from Cursor's prompt-building service.
+If you enable `RECORD_REDACT`, a redaction layer removes any sensitive data, such as: system prompts, tool names, tool descriptions, and any context containing scaffolding from Cursor's prompt-building service.
 
 Therefore, recorded traffic can be published under `tests/recordings/` to be used as test fixtures while remaining MIT-licensed.
 

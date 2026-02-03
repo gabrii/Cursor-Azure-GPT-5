@@ -6,11 +6,13 @@ requests into Azure Responses API request parameters.
 
 from __future__ import annotations
 
+import json
 from typing import Any, Dict, List
 
 from flask import Request, current_app
 
-from ..exceptions import CursorConfigurationError, ServiceConfigurationError
+from ..exceptions import ServiceConfigurationError
+from .model_config import resolve_model_settings
 
 
 class RequestAdapter:
@@ -43,9 +45,39 @@ class RequestAdapter:
         instructions_parts: List[str] = []
         input_items: List[Dict[str, Any]] = []
 
+        def normalize_content(content: Any) -> str:
+            if content is None:
+                return ""
+            if isinstance(content, str):
+                return content
+            if isinstance(content, list):
+                parts: List[str] = []
+                for part in content:
+                    if isinstance(part, str):
+                        parts.append(part)
+                        continue
+                    if isinstance(part, dict):
+                        text = part.get("text")
+                        if text is not None:
+                            parts.append(str(text))
+                        elif "content" in part:
+                            parts.append(str(part.get("content")))
+                        else:
+                            parts.append(json.dumps(part, ensure_ascii=False))
+                        continue
+                    parts.append(str(part))
+                return "\n".join([p for p in parts if p])
+            if isinstance(content, dict):
+                if "text" in content:
+                    return str(content.get("text"))
+                if "content" in content:
+                    return str(content.get("content"))
+                return json.dumps(content, ensure_ascii=False)
+            return str(content)
+
         for m in messages:
             role = m.get("role")
-            content = m.get("content")
+            content = normalize_content(m.get("content"))
             if role in {"system", "developer"}:
                 instructions_parts.append(content)
                 continue
@@ -91,24 +123,49 @@ class RequestAdapter:
         }
 
     def _transform_tools_for_responses(self, tools: Any) -> Any:
-        out: List[Dict[str, Any]] = []
+        """Normalize downstream tools into Responses-style tools.
+
+        Our replay fixtures expect Responses tool format (with `input_schema`).
+        Some downstream clients may still send OpenAI function tools
+        (with `parameters`). We convert those.
+        """
+        if tools is None:
+            return []
+
         if not isinstance(tools, list):
             current_app.logger.debug(
-                "Skipping tool transformation because tools payload is not a list: %r",
+                "Skipping tools because tools payload is not a list: %r",
                 tools,
             )
-            return out
+            return []
 
-        for tool in tools:
-            function = tool.get("function")
-            transformed: Dict[str, Any] = {
-                "type": "function",
-                "name": function.get("name"),
-                "description": function.get("description"),
-                "parameters": function.get("parameters"),
-                "strict": False,
-            }
-            out.append(transformed)
+        out: List[Dict[str, Any]] = []
+        for t in tools:
+            if not isinstance(t, dict):
+                continue
+
+            # Pass through if already Responses-style.
+            if "input_schema" in t and t.get("type") == "function":
+                out.append(t)
+                continue
+
+            # Convert OpenAI function tool shape -> Responses tool shape.
+            if t.get("type") == "function" and isinstance(t.get("function"), dict):
+                fn = t.get("function") or {}
+                converted: Dict[str, Any] = {
+                    "type": "function",
+                    "name": fn.get("name"),
+                    "description": fn.get("description"),
+                    "strict": bool(fn.get("strict", False)),
+                }
+                if "parameters" in fn:
+                    converted["input_schema"] = fn.get("parameters")
+                out.append(converted)
+                continue
+
+            # Unknown tool shapes: forward as-is (best-effort).
+            out.append(t)
+
         return out
 
     # ---- Main adaptation (always streaming completions-like) ----
@@ -135,15 +192,21 @@ class RequestAdapter:
         )
 
         # Map Chat/Completions to Responses (always streaming)
-        messages = payload.get("messages") or []
+        responses_body: Dict[str, Any] = {"input": None, "instructions": None}
+        if isinstance(payload, dict) and isinstance(payload.get("input"), list):
+            responses_body["input"] = payload.get("input")
+            if payload.get("instructions"):
+                responses_body["instructions"] = payload.get("instructions")
+        else:
+            messages = payload.get("messages") or []
+            responses_body = (
+                self._messages_to_responses_input_and_instructions(messages)
+                if isinstance(messages, list)
+                else {"input": None, "instructions": None}
+            )
 
-        responses_body = (
-            self._messages_to_responses_input_and_instructions(messages)
-            if isinstance(messages, list)
-            else {"input": None, "instructions": None}
-        )
-
-        responses_body["model"] = settings["AZURE_DEPLOYMENT"]
+        deployment, reasoning_effort = resolve_model_settings(inbound_model, settings)
+        responses_body["model"] = deployment
 
         # Transform tools and tool choice
         responses_body["tools"] = self._transform_tools_for_responses(
@@ -156,35 +219,45 @@ class RequestAdapter:
         # Always streaming
         responses_body["stream"] = True
 
-        reasoning_effort = inbound_model.replace("gpt-", "").lower()
-        if reasoning_effort not in {"high", "medium", "low", "minimal"}:
-            raise CursorConfigurationError(
-                "Model name must be either gpt-high, gpt-medium, gpt-low, or gpt-minimal."
-                f"\n\nGot: {inbound_model}"
-            )
-
-        responses_body["reasoning"] = {
-            "effort": reasoning_effort,
-        }
+        reasoning = {}
+        if isinstance(payload, dict) and isinstance(payload.get("reasoning"), dict):
+            reasoning.update(payload.get("reasoning") or {})
+        reasoning.setdefault("effort", reasoning_effort)
+        responses_body["reasoning"] = reasoning
 
         # Concise is not supported by GPT-5,
         # but allowing it for now to be able to test it on other models
-        if settings["AZURE_SUMMARY_LEVEL"] in {"auto", "detailed", "concise"}:
-            responses_body["reasoning"]["summary"] = settings["AZURE_SUMMARY_LEVEL"]
+        if "summary" not in responses_body["reasoning"]:
+            if settings["AZURE_SUMMARY_LEVEL"] in {"auto", "detailed", "concise"}:
+                responses_body["reasoning"]["summary"] = settings["AZURE_SUMMARY_LEVEL"]
+            else:
+                raise ServiceConfigurationError(
+                    "AZURE_SUMMARY_LEVEL must be either auto, detailed, or concise."
+                    f"\n\nGot: {settings['AZURE_SUMMARY_LEVEL']}"
+                )
         else:
-            raise ServiceConfigurationError(
-                "AZURE_SUMMARY_LEVEL must be either auto, detailed, or concise."
-                f"\n\nGot: {settings['AZURE_SUMMARY_LEVEL']}"
-            )
+            if responses_body["reasoning"]["summary"] not in {
+                "auto",
+                "detailed",
+                "concise",
+            }:
+                raise ServiceConfigurationError(
+                    "reasoning.summary must be either auto, detailed, or concise."
+                    f"\n\nGot: {responses_body['reasoning']['summary']}"
+                )
 
         # No need to pass verbosity if it's set to medium, as it's the model's default
-        if settings["AZURE_VERBOSITY_LEVEL"] in {"low", "high"}:
+        if isinstance(payload, dict) and isinstance(payload.get("text"), dict):
+            responses_body["text"] = payload.get("text")
+        elif settings["AZURE_VERBOSITY_LEVEL"] in {"low", "high"}:
             responses_body["text"] = {"verbosity": settings["AZURE_VERBOSITY_LEVEL"]}
 
         responses_body["store"] = False
         responses_body["stream_options"] = {"include_obfuscation": False}
 
-        if settings["AZURE_TRUNCATION"] == "auto":
+        if isinstance(payload, dict) and payload.get("truncation"):
+            responses_body["truncation"] = payload.get("truncation")
+        elif settings["AZURE_TRUNCATION"] == "auto":
             responses_body["truncation"] = settings["AZURE_TRUNCATION"]
 
         request_kwargs: Dict[str, Any] = {
