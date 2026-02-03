@@ -1,327 +1,335 @@
 {
-  "instructions": "REDACTED",
   "input": [
     {
-      "role": "user",
       "content": [
         {
-          "type": "input_text",
-          "text": "REDACTED"
+          "text": "REDACTED",
+          "type": "input_text"
         }
-      ]
+      ],
+      "role": "user"
     },
     {
-      "role": "user",
       "content": [
         {
-          "type": "input_text",
-          "text": "REDACTED"
+          "text": "REDACTED",
+          "type": "input_text"
         }
-      ]
+      ],
+      "role": "user"
     },
     {
-      "role": "assistant",
       "content": [
         {
-          "type": "output_text",
-          "text": "REDACTED"
+          "text": "REDACTED",
+          "type": "output_text"
         }
-      ]
+      ],
+      "role": "assistant"
     },
     {
-      "type": "function_call",
-      "name": "REDACTED",
       "arguments": "{\"pattern\":\"foo\",\"output_mode\":\"count\",\"explanation\":\"Search the workspace to count occurrences of pattern 'foo'.\"}",
-      "call_id": "call_Dke46usJNOchzqyvXSJQQMXP"
-    },
-    {
-      "type": "function_call",
+      "call_id": "call_Dke46usJNOchzqyvXSJQQMXP",
       "name": "REDACTED",
+      "type": "function_call"
+    },
+    {
       "arguments": "{\"pattern\":\"bar\",\"output_mode\":\"count\",\"explanation\":\"Search the workspace to count occurrences of pattern 'bar'.\"}",
-      "call_id": "call_jefCQLGSyAUpkBE78xklruzf"
+      "call_id": "call_jefCQLGSyAUpkBE78xklruzf",
+      "name": "REDACTED",
+      "type": "function_call"
     },
     {
-      "type": "function_call_output",
+      "call_id": "call_Dke46usJNOchzqyvXSJQQMXP",
       "output": "<workspace_result workspace_path=\"/home/gabri/componses\">\nFound 1 matches across 1 file\nREADME.md:1\n</workspace_result>",
       "status": "completed",
-      "call_id": "call_Dke46usJNOchzqyvXSJQQMXP"
+      "type": "function_call_output"
     },
     {
-      "type": "function_call_output",
+      "call_id": "call_jefCQLGSyAUpkBE78xklruzf",
       "output": "<workspace_result workspace_path=\"/home/gabri/componses\">\nFound 1 matches across 1 file\nREADME.md:1\n</workspace_result>",
       "status": "completed",
-      "call_id": "call_jefCQLGSyAUpkBE78xklruzf"
+      "type": "function_call_output"
     }
   ],
+  "instructions": "REDACTED",
   "model": "gpt-5",
+  "prompt_cache_key": "REDACTED",
+  "reasoning": {
+    "effort": "minimal",
+    "summary": "detailed"
+  },
+  "store": false,
+  "stream": true,
+  "stream_options": {
+    "include_obfuscation": false
+  },
+  "tool_choice": "auto",
   "tools": [
     {
-      "type": "function",
-      "name": "REDACTED",
       "description": "REDACTED",
-      "parameters": {
-        "type": "object",
+      "input_schema": {
         "properties": {
-          "target_file": {
-            "type": "string",
-            "description": "REDACTED"
-          },
-          "should_read_entire_file": {
-            "type": "boolean",
-            "description": "REDACTED"
-          },
-          "start_line_one_indexed": {
-            "type": "integer",
-            "description": "REDACTED"
-          },
           "end_line_one_indexed_inclusive": {
-            "type": "integer",
-            "description": "REDACTED"
+            "description": "REDACTED",
+            "type": "integer"
           },
           "explanation": {
-            "type": "string",
-            "description": "REDACTED"
+            "description": "REDACTED",
+            "type": "string"
+          },
+          "should_read_entire_file": {
+            "description": "REDACTED",
+            "type": "boolean"
+          },
+          "start_line_one_indexed": {
+            "description": "REDACTED",
+            "type": "integer"
+          },
+          "target_file": {
+            "description": "REDACTED",
+            "type": "string"
           }
         },
         "required": [
           "target_file",
           "should_read_entire_file"
-        ]
+        ],
+        "type": "object"
       },
-      "strict": false
+      "name": "REDACTED",
+      "strict": false,
+      "type": "function"
     },
     {
-      "type": "function",
-      "name": "REDACTED",
       "description": "REDACTED",
-      "parameters": {
-        "type": "object",
+      "input_schema": {
         "properties": {
           "command": {
-            "type": "string",
-            "description": "REDACTED"
-          },
-          "is_background": {
-            "type": "boolean",
-            "description": "REDACTED"
+            "description": "REDACTED",
+            "type": "string"
           },
           "explanation": {
-            "type": "string",
-            "description": "REDACTED"
+            "description": "REDACTED",
+            "type": "string"
+          },
+          "is_background": {
+            "description": "REDACTED",
+            "type": "boolean"
           }
         },
         "required": [
           "command",
           "is_background"
-        ]
+        ],
+        "type": "object"
       },
-      "strict": false
+      "name": "REDACTED",
+      "strict": false,
+      "type": "function"
     },
     {
-      "type": "function",
-      "name": "REDACTED",
       "description": "REDACTED",
-      "parameters": {
-        "type": "object",
+      "input_schema": {
         "properties": {
-          "relative_workspace_path": {
-            "type": "string",
-            "description": "REDACTED"
-          },
           "explanation": {
-            "type": "string",
-            "description": "REDACTED"
+            "description": "REDACTED",
+            "type": "string"
+          },
+          "relative_workspace_path": {
+            "description": "REDACTED",
+            "type": "string"
           }
         },
         "required": [
           "relative_workspace_path"
-        ]
+        ],
+        "type": "object"
       },
-      "strict": false
+      "name": "REDACTED",
+      "strict": false,
+      "type": "function"
     },
     {
-      "type": "function",
-      "name": "REDACTED",
       "description": "REDACTED",
-      "parameters": {
-        "type": "object",
+      "input_schema": {
         "properties": {
-          "pattern": {
-            "type": "string",
-            "description": "REDACTED"
+          "-A": {
+            "description": "REDACTED",
+            "type": "number"
           },
-          "path": {
-            "type": "string",
-            "description": "REDACTED"
+          "-B": {
+            "description": "REDACTED",
+            "type": "number"
+          },
+          "-C": {
+            "description": "REDACTED",
+            "type": "number"
+          },
+          "-i": {
+            "description": "REDACTED",
+            "type": "boolean"
           },
           "glob": {
-            "type": "string",
-            "description": "REDACTED"
+            "description": "REDACTED",
+            "type": "string"
+          },
+          "head_limit": {
+            "description": "REDACTED",
+            "type": "number"
+          },
+          "multiline": {
+            "description": "REDACTED",
+            "type": "boolean"
           },
           "output_mode": {
-            "type": "string",
             "description": "REDACTED",
             "enum": [
               "content",
               "files_with_matches",
               "count"
-            ]
+            ],
+            "type": "string"
           },
-          "-B": {
-            "type": "number",
-            "description": "REDACTED"
+          "path": {
+            "description": "REDACTED",
+            "type": "string"
           },
-          "-A": {
-            "type": "number",
-            "description": "REDACTED"
-          },
-          "-C": {
-            "type": "number",
-            "description": "REDACTED"
-          },
-          "-i": {
-            "type": "boolean",
-            "description": "REDACTED"
+          "pattern": {
+            "description": "REDACTED",
+            "type": "string"
           },
           "type": {
-            "type": "string",
-            "description": "REDACTED"
-          },
-          "head_limit": {
-            "type": "number",
-            "description": "REDACTED"
-          },
-          "multiline": {
-            "type": "boolean",
-            "description": "REDACTED"
+            "description": "REDACTED",
+            "type": "string"
           }
         },
         "required": [
           "pattern"
-        ]
+        ],
+        "type": "object"
       },
-      "strict": false
+      "name": "REDACTED",
+      "strict": false,
+      "type": "function"
     },
     {
-      "type": "function",
-      "name": "REDACTED",
       "description": "REDACTED",
-      "parameters": {
-        "type": "object",
+      "input_schema": {
         "properties": {
-          "target_file": {
-            "type": "string",
-            "description": "REDACTED"
+          "code_edit": {
+            "description": "REDACTED",
+            "type": "string"
           },
           "instructions": {
-            "type": "string",
-            "description": "REDACTED"
+            "description": "REDACTED",
+            "type": "string"
           },
-          "code_edit": {
-            "type": "string",
-            "description": "REDACTED"
+          "target_file": {
+            "description": "REDACTED",
+            "type": "string"
           }
         },
         "required": [
           "target_file",
           "instructions",
           "code_edit"
-        ]
+        ],
+        "type": "object"
       },
-      "strict": false
+      "name": "REDACTED",
+      "strict": false,
+      "type": "function"
     },
     {
-      "type": "function",
-      "name": "REDACTED",
       "description": "REDACTED",
-      "parameters": {
-        "type": "object",
+      "input_schema": {
         "properties": {
-          "target_file": {
-            "type": "string",
-            "description": "REDACTED"
-          },
           "explanation": {
-            "type": "string",
-            "description": "REDACTED"
+            "description": "REDACTED",
+            "type": "string"
+          },
+          "target_file": {
+            "description": "REDACTED",
+            "type": "string"
           }
         },
         "required": [
           "target_file"
-        ]
+        ],
+        "type": "object"
       },
-      "strict": false
+      "name": "REDACTED",
+      "strict": false,
+      "type": "function"
     },
     {
-      "type": "function",
-      "name": "REDACTED",
       "description": "REDACTED",
-      "parameters": {
-        "type": "object",
+      "input_schema": {
         "properties": {
           "target_file": {
-            "type": "string",
-            "description": "REDACTED"
+            "description": "REDACTED",
+            "type": "string"
           }
         },
         "required": [
           "target_file"
-        ]
+        ],
+        "type": "object"
       },
-      "strict": false
+      "name": "REDACTED",
+      "strict": false,
+      "type": "function"
     },
     {
-      "type": "function",
-      "name": "REDACTED",
       "description": "REDACTED",
-      "parameters": {
-        "type": "object",
+      "input_schema": {
+        "properties": {
+          "explanation": {
+            "description": "REDACTED",
+            "type": "string"
+          },
+          "search_term": {
+            "description": "REDACTED",
+            "type": "string"
+          }
+        },
         "required": [
           "search_term"
         ],
-        "properties": {
-          "search_term": {
-            "type": "string",
-            "description": "REDACTED"
-          },
-          "explanation": {
-            "type": "string",
-            "description": "REDACTED"
-          }
-        }
+        "type": "object"
       },
-      "strict": false
+      "name": "REDACTED",
+      "strict": false,
+      "type": "function"
     },
     {
-      "type": "function",
-      "name": "REDACTED",
       "description": "REDACTED",
-      "parameters": {
-        "type": "object",
+      "input_schema": {
         "properties": {
-          "target_notebook": {
-            "type": "string",
-            "description": "REDACTED"
-          },
           "cell_idx": {
-            "type": "number",
-            "description": "REDACTED"
-          },
-          "is_new_cell": {
-            "type": "boolean",
-            "description": "REDACTED"
+            "description": "REDACTED",
+            "type": "number"
           },
           "cell_language": {
-            "type": "string",
-            "description": "REDACTED"
+            "description": "REDACTED",
+            "type": "string"
           },
-          "old_string": {
-            "type": "string",
-            "description": "REDACTED"
+          "is_new_cell": {
+            "description": "REDACTED",
+            "type": "boolean"
           },
           "new_string": {
-            "type": "string",
-            "description": "REDACTED"
+            "description": "REDACTED",
+            "type": "string"
+          },
+          "old_string": {
+            "description": "REDACTED",
+            "type": "string"
+          },
+          "target_notebook": {
+            "description": "REDACTED",
+            "type": "string"
           }
         },
         "required": [
@@ -331,20 +339,12 @@
           "cell_language",
           "old_string",
           "new_string"
-        ]
+        ],
+        "type": "object"
       },
-      "strict": false
+      "name": "REDACTED",
+      "strict": false,
+      "type": "function"
     }
-  ],
-  "tool_choice": "auto",
-  "prompt_cache_key": "REDACTED",
-  "stream": true,
-  "reasoning": {
-    "effort": "minimal",
-    "summary": "detailed"
-  },
-  "store": false,
-  "stream_options": {
-    "include_obfuscation": false
-  }
+  ]
 }

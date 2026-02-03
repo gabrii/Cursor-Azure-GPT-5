@@ -223,10 +223,13 @@ def log_request(req: Request) -> str:
     # Rich pretty print of the full request details
     console.rule(f"[bold]Request #{rid}[/bold] — {method} {path}")
     json_payload = details.get("json")
+    if not isinstance(json_payload, dict):
+        json_payload = {}
 
     # Remove verbose fields to log them separately
+    verbose_fields = {"tools", "messages", "input", "instructions"}
     cleaned_json = {
-        k: v if k not in {"tools", "messages"} else "Pretty-printed below ↓"
+        k: v if k not in verbose_fields else "Pretty-printed below ↓"
         for k, v in json_payload.items()
     }
     console.print_json(
@@ -235,7 +238,47 @@ def log_request(req: Request) -> str:
     )
 
     messages = json_payload.get("messages", [])
+    if not isinstance(messages, list):
+        messages = []
+
+    # Responses-style requests use `input` instead of `messages`.
+    # Convert input items into message-like dicts for display.
+    input_items = json_payload.get("input", [])
+    if not messages and isinstance(input_items, list):
+        converted: List[Dict[str, Any]] = []
+        for item in input_items:
+            if not isinstance(item, dict):
+                continue
+            if "role" in item:
+                converted.append(
+                    {
+                        "role": item.get("role"),
+                        "content": item.get("content", ""),
+                        "name": item.get("name"),
+                        "tool_call_id": item.get("tool_call_id"),
+                    }
+                )
+                continue
+            item_type = item.get("type")
+            if item_type in {"function_call", "function_call_output"}:
+                converted.append(
+                    {
+                        "role": "tool",
+                        "content": json.dumps(item, ensure_ascii=False, indent=2),
+                    }
+                )
+                continue
+            converted.append(
+                {
+                    "role": "user",
+                    "content": json.dumps(item, ensure_ascii=False, indent=2),
+                }
+            )
+        messages = converted
+
     tools = json_payload.get("tools", []) or []
+    if not isinstance(tools, list):
+        tools = []
 
     # Render tools section once (no duplicate panels)
     table = Table(
@@ -248,10 +291,25 @@ def log_request(req: Request) -> str:
     table.add_column("Description", style="white")
 
     for tool in tools:
+        if not isinstance(tool, dict):
+            continue
+
+        # OpenAI-style function tool: {"type":"function","function":{..."parameters":{...}}}
         function = tool.get("function")
-        parameters = function.get("parameters", {}) or {}
-        required = parameters.get("required", []) or []
-        props = parameters.get("properties", {}) or {}
+        if isinstance(function, dict):
+            tool_name = function.get("name")
+            tool_desc = function.get("description")
+            schema = function.get("parameters", {}) or {}
+        # Responses-style function tool: {"type":"function","name":...,"input_schema":{...}}
+        elif tool.get("type") == "function":
+            tool_name = tool.get("name")
+            tool_desc = tool.get("description")
+            schema = tool.get("input_schema", {}) or {}
+        else:
+            continue
+
+        required = schema.get("required", []) or []
+        props = schema.get("properties", {}) or {}
 
         params_table = Table(
             show_header=False,
@@ -265,9 +323,13 @@ def log_request(req: Request) -> str:
         params_table.add_column("Name", justify="right", no_wrap=True, style="cyan")
         params_table.add_column("Description", style="white")
         for param_name, param_value in props.items():
+            if not isinstance(param_value, dict):
+                continue
             param_type = param_value.get("type")
             if param_type == "array":
-                param_type += f"({param_value.get('items').get('type')})"
+                items = param_value.get("items") or {}
+                if isinstance(items, dict):
+                    param_type += f"({items.get('type')})"
             if param_name in required:
                 param_type = f"[bold]*{param_type}[/bold]"
             param_type = f"[magenta]{param_type}[/magenta]"
@@ -276,9 +338,9 @@ def log_request(req: Request) -> str:
                 f"{param_value.get('description')}",
             )
         table.add_row(
-            f"{function.get('name')}",
+            f"{tool_name}",
             Group(
-                Markdown(escape_tags(function.get("description"))),
+                Markdown(escape_tags(tool_desc)),
                 params_table,
             ),
         )
@@ -286,7 +348,7 @@ def log_request(req: Request) -> str:
     console.print(
         Panel(
             table,
-            title=f"[italic]{0}/{len(messages)}[/italic] [bold]<tools>[/bold]",
+            title=f"[italic]0/{len(tools)}[/italic] [bold]<tools>[/bold]",
             title_align="left",
             subtitle="[bold]</tools>[/bold]",
             subtitle_align="right",

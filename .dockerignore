@@ -1,0 +1,28 @@
+# Keep image builds fast and avoid leaking local artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local venvs
+.venv/
+venv/
+
+# Local outputs
+htmlcov/
+coverage.xml
+recordings/
+
+# Duplicate copy of repo used in tests/debugging
+false/
+
+# VCS
+.git/
+.gitignore
+
+# OS/editor
+.DS_Store
+.vscode/
