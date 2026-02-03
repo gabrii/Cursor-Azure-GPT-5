@@ -8,6 +8,7 @@ from flask import Blueprint, current_app, jsonify, request
 
 from .auth import require_auth
 from .azure.adapter import AzureAdapter
+from .azure.model_config import available_models
 from .common.logging import log_request
 from .common.recording import (
     increment_last_recording,
@@ -60,12 +61,7 @@ def catch_all(path: str):
 @require_auth
 def models():
     """Return a list of available models."""
-    models = [
-        "gpt-high",
-        "gpt-medium",
-        "gpt-low",
-        "gpt-minimal",
-    ]
+    models = available_models(current_app.config)
     return jsonify(
         {
             "object": "list",

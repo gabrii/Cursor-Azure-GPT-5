@@ -11,7 +11,8 @@ from typing import Any, Dict, List
 
 from flask import Request, current_app
 
-from ..exceptions import CursorConfigurationError, ServiceConfigurationError
+from ..exceptions import ServiceConfigurationError
+from .model_config import resolve_model_settings
 
 
 class RequestAdapter:
@@ -174,7 +175,8 @@ class RequestAdapter:
             else {"input": None, "instructions": None}
         )
 
-        responses_body["model"] = settings["AZURE_DEPLOYMENT"]
+        deployment, reasoning_effort = resolve_model_settings(inbound_model, settings)
+        responses_body["model"] = deployment
 
         # Transform tools and tool choice
         responses_body["tools"] = self._transform_tools_for_responses(
@@ -186,13 +188,6 @@ class RequestAdapter:
 
         # Always streaming
         responses_body["stream"] = True
-
-        reasoning_effort = inbound_model.replace("gpt-", "").lower()
-        if reasoning_effort not in {"high", "medium", "low", "minimal"}:
-            raise CursorConfigurationError(
-                "Model name must be either gpt-high, gpt-medium, gpt-low, or gpt-minimal."
-                f"\n\nGot: {inbound_model}"
-            )
 
         responses_body["reasoning"] = {
             "effort": reasoning_effort,

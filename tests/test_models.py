@@ -24,6 +24,19 @@ class TestModels:
         assert '"gpt-low"' in content
         assert '"gpt-minimal"' in content
 
+    def test_models_endpoint_includes_deployment_map(self, testapp):
+        """Ensure /models endpoint includes mapped models."""
+        testapp.app.config["AZURE_DEPLOYMENT_MAP"] = {
+            "gpt-5.2": "gpt-5-2-deployment",
+        }
+        response = testapp.get(
+            "/models",
+            status=200,
+            headers={"Authorization": "Bearer test-service-api-key"},
+        )
+        content = response.body.decode("utf-8")
+        assert '"gpt-5.2"' in content
+
     def test_health_endpoint_returns_200(self, testapp):
         """Ensure /health endpoint returns HTTP 200 without auth."""
         testapp.get("/health", status=200)
