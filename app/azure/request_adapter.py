@@ -27,6 +27,27 @@ class RequestAdapter:
         self.adapter = adapter  # AzureAdapter instance for shared config/env
 
     # ---- Helpers (kept local to minimize cross-module coupling) ----
+    def _content_to_text(self, content: Any) -> str:
+        """Convert message content (string or list of parts) to a string for Azure."""
+        if content is None:
+            return ""
+        if isinstance(content, str):
+            return content
+        if isinstance(content, list):
+            parts = []
+            for part in content:
+                if isinstance(part, dict):
+                    if part.get("type") == "text":
+                        parts.append(part.get("text", ""))
+                    elif part.get("type") == "image_url":
+                        parts.append("[image]")
+                    else:
+                        parts.append(f"[{part.get('type', 'unknown')}]")
+                else:
+                    parts.append(str(part))
+            return "\n".join(parts) if parts else ""
+        return str(content)
+
     def _copy_request_headers_for_azure(
         self, src: Request, *, api_key: str
     ) -> Dict[str, str]:
@@ -47,26 +68,26 @@ class RequestAdapter:
             role = m.get("role")
             content = m.get("content")
             if role in {"system", "developer"}:
-                instructions_parts.append(content)
+                instructions_parts.append(self._content_to_text(content))
                 continue
             # For user/assistant/tools as inputs
             if role == "tool":
                 call_id = m.get("tool_call_id")
-
                 item = {
                     "type": "function_call_output",
-                    "output": content,
+                    "output": self._content_to_text(content),
                     "status": "completed",
                     "call_id": call_id,
                 }
                 input_items.append(item)
             else:
+                text_content = self._content_to_text(content)
                 item = {
                     "role": role or "user",
                     "content": [
                         {
                             "type": "input_text" if role == "user" else "output_text",
-                            "text": content,
+                            "text": text_content,
                         },
                     ],
                 }
