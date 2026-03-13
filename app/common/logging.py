@@ -100,9 +100,33 @@ def _capture_request_details(req: Request, request_id: str) -> Dict[str, Any]:
 
 def escape_tags(text: str) -> str:
     """Escapes xml-like tags in text so that they are visible when rendered as Markdown."""
+    if text is None:
+        return ""
+    if not isinstance(text, str):
+        return str(text)
     return re.sub(
         "(<[^<\n]+?)(>)", "\\1>`\n", re.sub("(<)([^>\n]+?>)", "\n`<\\2", text)
     ).replace(">`\n\n\n`<", ">`\n\n`<")
+
+
+def _content_to_string(content: Any) -> str:
+    """Convert message content (string or list of parts) to a string for display."""
+    if content is None:
+        return ""
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts = []
+        for part in content:
+            if isinstance(part, dict):
+                if part.get("type") == "text":
+                    parts.append(part.get("text", ""))
+                else:
+                    parts.append(f"[{part.get('type', 'unknown')}]")
+            else:
+                parts.append(str(part))
+        return "\n".join(parts) if parts else ""
+    return str(content)
 
 
 def create_message_panel(msg: Dict[str, Any], idx: int, total: int) -> Panel:
