@@ -216,7 +216,7 @@ def log_request(req: Request) -> str:
 
     # Rich pretty print of the full request details
     console.rule(f"[bold]Request #{rid}[/bold] — {method} {path}")
-    json_payload = details.get("json")
+    json_payload = details.get("json") or {}
 
     # Remove verbose fields to log them separately
     cleaned_json = {
@@ -228,8 +228,8 @@ def log_request(req: Request) -> str:
         indent=None,
     )
 
-    messages = json_payload.get("messages", [])
-    tools = json_payload.get("tools", []) or []
+    messages = json_payload.get("messages") or []
+    tools = json_payload.get("tools") or []
 
     # Render tools section once (no duplicate panels)
     table = Table(
@@ -242,10 +242,12 @@ def log_request(req: Request) -> str:
     table.add_column("Description", style="white")
 
     for tool in tools:
-        function = tool.get("function")
-        parameters = function.get("parameters", {}) or {}
-        required = parameters.get("required", []) or []
-        props = parameters.get("properties", {}) or {}
+        if not isinstance(tool, dict):
+            continue
+        function = tool.get("function") or {}
+        parameters = function.get("parameters") or {}
+        required = parameters.get("required") or []
+        props = parameters.get("properties") or {}
 
         params_table = Table(
             show_header=False,
@@ -259,20 +261,23 @@ def log_request(req: Request) -> str:
         params_table.add_column("Name", justify="right", no_wrap=True, style="cyan")
         params_table.add_column("Description", style="white")
         for param_name, param_value in props.items():
-            param_type = param_value.get("type")
+            if not isinstance(param_value, dict):
+                continue
+            param_type = param_value.get("type", "unknown")
             if param_type == "array":
-                param_type += f"({param_value.get('items').get('type')})"
+                items = param_value.get("items") or {}
+                param_type += f"({items.get('type', '?')})"
             if param_name in required:
                 param_type = f"[bold]*{param_type}[/bold]"
             param_type = f"[magenta]{param_type}[/magenta]"
             params_table.add_row(
                 Group(param_name, param_type),
-                f"{param_value.get('description')}",
+                f"{param_value.get('description', '')}",
             )
         table.add_row(
-            f"{function.get('name')}",
+            f"{function.get('name', '?')}",
             Group(
-                Markdown(escape_tags(function.get("description"))),
+                Markdown(escape_tags(function.get("description") or "")),
                 params_table,
             ),
         )

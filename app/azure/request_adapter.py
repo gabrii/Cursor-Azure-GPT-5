@@ -94,8 +94,10 @@ class RequestAdapter:
                 input_items.append(item)
 
                 if tool_calls := m.get("tool_calls"):
-                    for tool_call in tool_calls:
-                        function = tool_call.get("function", {})
+                    for tool_call in tool_calls or []:
+                        if not isinstance(tool_call, dict):
+                            continue
+                        function = tool_call.get("function") or {}
                         call_id = tool_call.get("id")
                         item = {
                             "type": "function_call",
@@ -120,8 +122,25 @@ class RequestAdapter:
             )
             return out
 
+        # Debug: log the shape of first tool to understand what Cursor sends
+        if tools:
+            sample = tools[0] if isinstance(tools[0], dict) else {}
+            current_app.logger.info(
+                "TOOL_DEBUG: first tool keys=%s, type=%s, has_function=%s",
+                list(sample.keys())[:10],
+                sample.get("type"),
+                "function" in sample,
+            )
+
         for tool in tools:
+            if not isinstance(tool, dict):
+                continue
             function = tool.get("function")
+            if not function:
+                # Tool might already be in Responses API format (has "name" at top level)
+                if tool.get("name"):
+                    out.append(tool)
+                continue
             transformed: Dict[str, Any] = {
                 "type": "function",
                 "name": function.get("name"),
@@ -142,10 +161,10 @@ class RequestAdapter:
         # Reset per-request state
         self.adapter.inbound_model = None
 
-        # Parse request body
-        payload = req.get_json(silent=True, force=False)
+        # Parse request body (Cursor sometimes sends malformed payloads)
+        payload = req.get_json(silent=True, force=False) or {}
 
-        # Determine target model: prefer env AZURE_MODEL/AZURE_DEPLOYMENT
+        # Determine target model
         inbound_model = payload.get("model") if isinstance(payload, dict) else None
         self.adapter.inbound_model = inbound_model
 
@@ -156,15 +175,83 @@ class RequestAdapter:
         )
 
         # Map Chat/Completions to Responses (always streaming)
-        messages = payload.get("messages") or []
+        # Cursor may send either:
+        #   - Chat Completions format: {"messages": [...]}
+        #   - Responses API format:    {"input": [...], "instructions": "..."}
+        messages = payload.get("messages")
+        raw_input = payload.get("input")
 
-        responses_body = (
-            self._messages_to_responses_input_and_instructions(messages)
-            if isinstance(messages, list)
-            else {"input": None, "instructions": None}
+        if messages and isinstance(messages, list):
+            # Standard Chat Completions → convert to Responses format
+            responses_body = self._messages_to_responses_input_and_instructions(
+                messages
+            )
+        elif raw_input is not None:
+            # Already in Responses API format — pass through
+            responses_body = {
+                "input": raw_input,
+                "instructions": payload.get("instructions"),
+            }
+        else:
+            responses_body = {"input": "", "instructions": None}
+
+        # ---- Model + reasoning effort routing ----
+        # Cursor model name encodes both the Azure deployment and reasoning effort.
+        #
+        # Supported reasoning efforts per OpenAI docs (gpt-5.4 model page):
+        #   none (default, no reasoning), low, medium, high, xhigh
+        #
+        # Names in Cursor:
+        #   gpt-5.4-none / gpt-5.4-low / gpt-5.4-medium / gpt-5.4-high / gpt-5.4-xhigh
+        #   gpt-5.4-mini-none / gpt-5.4-mini-low / ... / gpt-5.4-mini-xhigh
+
+        MODEL_MAP = {
+            # gpt-5.4 variants
+            "gpt-5.4-none": ("gpt-5.4", "none"),
+            "gpt-5.4-low": ("gpt-5.4", "low"),
+            "gpt-5.4-medium": ("gpt-5.4", "medium"),
+            "gpt-5.4-high": ("gpt-5.4", "high"),
+            "gpt-5.4-xhigh": ("gpt-5.4", "xhigh"),
+            # gpt-5.4 bare name (Cursor strips suffixes) → effort from control panel
+            "gpt-5.4": ("gpt-5.4", None),  # None = read from EFFORT_SETTINGS
+            # gpt-5.4-mini variants
+            "gpt-5.4-mini-none": ("gpt-5.4-mini", "none"),
+            "gpt-5.4-mini-low": ("gpt-5.4-mini", "low"),
+            "gpt-5.4-mini-medium": ("gpt-5.4-mini", "medium"),
+            "gpt-5.4-mini-high": ("gpt-5.4-mini", "high"),
+            "gpt-5.4-mini-xhigh": ("gpt-5.4-mini", "xhigh"),
+            # gpt-5.4-mini bare name → effort from control panel
+            "gpt-5.4-mini": ("gpt-5.4-mini", None),  # None = read from EFFORT_SETTINGS
+            # Legacy names → use env AZURE_DEPLOYMENT for backwards compatibility
+            "gpt-high": (settings["AZURE_DEPLOYMENT"], "high"),
+            "gpt-medium": (settings["AZURE_DEPLOYMENT"], "medium"),
+            "gpt-low": (settings["AZURE_DEPLOYMENT"], "low"),
+            "gpt-minimal": (settings["AZURE_DEPLOYMENT"], "minimal"),
+        }
+
+        model_key = (inbound_model or "").lower()
+        if model_key not in MODEL_MAP:
+            raise CursorConfigurationError(
+                "Model name must be one of:\n"
+                "  gpt-5.4-none, gpt-5.4-low, gpt-5.4-medium, gpt-5.4-high, gpt-5.4-xhigh\n"
+                "  gpt-5.4-mini-none, gpt-5.4-mini-low, gpt-5.4-mini-medium, gpt-5.4-mini-high, gpt-5.4-mini-xhigh\n"
+                f"\nGot: {inbound_model}"
+            )
+
+        azure_deployment, reasoning_effort = MODEL_MAP[model_key]
+
+        # If effort is None, read from the runtime control panel setting
+        if reasoning_effort is None:
+            effort_settings = settings.get("EFFORT_SETTINGS", {})
+            reasoning_effort = effort_settings.get(azure_deployment, "medium")
+
+        from ..common.logging import console
+
+        console.print(
+            f"[bold cyan]REQUEST:[/bold cyan] model={azure_deployment} effort={reasoning_effort}"
         )
 
-        responses_body["model"] = settings["AZURE_DEPLOYMENT"]
+        responses_body["model"] = azure_deployment
 
         # Transform tools and tool choice
         responses_body["tools"] = self._transform_tools_for_responses(
@@ -176,13 +263,6 @@ class RequestAdapter:
 
         # Always streaming
         responses_body["stream"] = True
-
-        reasoning_effort = inbound_model.replace("gpt-", "").lower()
-        if reasoning_effort not in {"high", "medium", "low", "minimal"}:
-            raise CursorConfigurationError(
-                "Model name must be either gpt-high, gpt-medium, gpt-low, or gpt-minimal."
-                f"\n\nGot: {inbound_model}"
-            )
 
         responses_body["reasoning"] = {
             "effort": reasoning_effort,

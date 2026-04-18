@@ -14,6 +14,13 @@ def create_app(config_object="app.settings"):
     """
     app = Flask(__name__.split(".")[0])
     app.config.from_object(config_object)
+
+    # In-memory reasoning effort defaults (mutable at runtime via control panel)
+    app.config["EFFORT_SETTINGS"] = {
+        "gpt-5.4": "medium",
+        "gpt-5.4-mini": "medium",
+    }
+
     configure_logging(app)
     register_commands(app)
     register_blueprints(app)
