@@ -125,11 +125,11 @@ class RequestAdapter:
         # Debug: log the shape of first tool to understand what Cursor sends
         if tools:
             sample = tools[0] if isinstance(tools[0], dict) else {}
-            current_app.logger.info(
-                "TOOL_DEBUG: first tool keys=%s, type=%s, has_function=%s",
-                list(sample.keys())[:10],
-                sample.get("type"),
-                "function" in sample,
+            from ..common.logging import console
+            console.print(
+                f"[bold yellow]TOOL_DEBUG:[/bold yellow] count={len(tools)}, "
+                f"first_keys={list(sample.keys())[:10]}, type={sample.get('type')}, "
+                f"has_function={'function' in sample}, has_name={'name' in sample}"
             )
 
         for tool in tools:
@@ -140,6 +140,12 @@ class RequestAdapter:
                 # Tool might already be in Responses API format (has "name" at top level)
                 if tool.get("name"):
                     out.append(tool)
+                else:
+                    from ..common.logging import console
+                    console.print(
+                        f"[bold red]TOOL_SKIPPED:[/bold red] tool has no 'function' and no 'name'. "
+                        f"keys={list(tool.keys())[:10]}"
+                    )
                 continue
             transformed: Dict[str, Any] = {
                 "type": "function",
@@ -149,6 +155,15 @@ class RequestAdapter:
                 "strict": False,
             }
             out.append(transformed)
+
+        from ..common.logging import console
+        console.print(
+            f"[bold yellow]TOOL_TRANSFORM:[/bold yellow] {len(tools)} tools in → {len(out)} tools out"
+        )
+        if out:
+            console.print(
+                f"[bold yellow]TOOL_TRANSFORM:[/bold yellow] first out name={out[0].get('name')}"
+            )
         return out
 
     # ---- Main adaptation (always streaming completions-like) ----

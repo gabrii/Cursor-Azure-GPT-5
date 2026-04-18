@@ -18,25 +18,13 @@ services:
       FLASK_DEBUG: "0"
       LOG_LEVEL: info
       GUNICORN_WORKERS: "1"
-    expose:
-      - "5000"
+    ports:
+      - "127.0.0.1:5000:5000"
     healthcheck:
       test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/health')"]
       interval: 10s
       timeout: 5s
       retries: 3
-
-  # ── Cloudflare tunnel (auto public URL, no account needed) ─────────────────
-  cloudflared:
-    image: cloudflare/cloudflared:latest
-    restart: unless-stopped
-    depends_on:
-      flask:
-        condition: service_healthy
-    command: tunnel --no-autoupdate --url http://flask:5000
-    # The public URL is printed in the logs — run:
-    #   docker compose logs cloudflared
-    # to see your tunnel URL, then paste it into Cursor.
 
   # ── Dev / management helpers (not started by default) ─────────────────────
   flask-dev:
