@@ -63,16 +63,18 @@ class AzureAdapter:
         except ValueError:
             resp_content = resp.text
 
-        body = request_kwargs.get("json", {})
-        body["instructions"] = body.get("instructions", "no instructions")[:16] + "..."
-        body["tools"] = f"...redacted {len(body.get('tools', 'no tools'))} tools..."
-        body["input"] = (
-            f"...redacted {len(body.get('input', 'no input'))} input items..."
-        )
+        body = request_kwargs.get("json") or {}
+        instructions = body.get("instructions") or "no instructions"
+        body["instructions"] = instructions[:16] + "..."
+        tools = body.get("tools")
+        body["tools"] = f"...redacted {len(tools) if tools else 0} tools..."
+        inp = body.get("input")
+        body["input"] = f"...redacted {len(inp) if inp else 0} input items..."
+        pck = body.get("prompt_cache_key") or "no prompt_cache_key"
         body["prompt_cache_key"] = re.sub(
             r"(...)(.*)(...)",
             "\\1***\\3",
-            body.get("prompt_cache_key", "no prompt_cache_key"),
+            pck if isinstance(pck, str) else str(pck),
         )
         report = {
             "endpoint": re.sub(

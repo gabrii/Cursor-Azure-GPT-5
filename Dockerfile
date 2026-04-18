@@ -10,7 +10,7 @@ RUN pip install --no-cache -r requirements/prod.txt
 
 COPY autoapp.py ./
 COPY app app
-COPY .env.example .env
+# .env is NOT baked in — it is mounted/injected at runtime via docker-compose env_file
 
 # ================================= PRODUCTION =================================
 FROM python:${INSTALL_PYTHON_VERSION}-slim-bullseye as production

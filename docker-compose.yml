@@ -1,41 +1,64 @@
 x-build-args: &build_args
   INSTALL_PYTHON_VERSION: "3.13"
 
-x-default-volumes: &default_volumes
-  volumes:
-    - ./:/app
-
 services:
+
+  # ── Flask proxy (production mode, gunicorn + supervisord) ──────────────────
+  flask:
+    build:
+      context: .
+      target: production
+      args:
+        <<: *build_args
+    image: "cursor-azure-gpt5"
+    restart: unless-stopped
+    env_file: .env                    # creds loaded at runtime, never baked in
+    environment:
+      FLASK_ENV: production
+      FLASK_DEBUG: "0"
+      LOG_LEVEL: info
+      GUNICORN_WORKERS: "1"
+    expose:
+      - "5000"
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # ── Cloudflare tunnel (auto public URL, no account needed) ─────────────────
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    depends_on:
+      flask:
+        condition: service_healthy
+    command: tunnel --no-autoupdate --url http://flask:5000
+    # The public URL is printed in the logs — run:
+    #   docker compose logs cloudflared
+    # to see your tunnel URL, then paste it into Cursor.
+
+  # ── Dev / management helpers (not started by default) ─────────────────────
   flask-dev:
     build:
       context: .
       target: development
       args:
         <<: *build_args
-    image: "app-development"
+    image: "cursor-azure-gpt5-dev"
+    env_file: .env
     ports:
-      - "8080:5000"
-    <<: *default_volumes
-
-  flask-prod:
-    build:
-      context: .
-      target: production
-      args:
-        <<: *build_args
-    image: "app-production"
-    ports:
-      - "8080:5000"
-    environment:
-      FLASK_ENV: production
-      FLASK_DEBUG: 0
-      LOG_LEVEL: info
-      GUNICORN_WORKERS: 4
-    <<: *default_volumes
+      - "8082:5000"
+    volumes:
+      - ./:/app
+    profiles: ["dev"]
 
   manage:
     entrypoint: flask
-    image: "app-development"
+    image: "cursor-azure-gpt5-dev"
+    env_file: .env
     stdin_open: true
     tty: true
-    <<: *default_volumes
+    volumes:
+      - ./:/app
+    profiles: ["dev"]
