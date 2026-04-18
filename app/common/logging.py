@@ -244,8 +244,12 @@ def log_request(req: Request) -> str:
     for tool in tools:
         if not isinstance(tool, dict):
             continue
+        # Support both Chat Completions format (function nested) and
+        # Responses API format (name/description/parameters at top level)
         function = tool.get("function") or {}
-        parameters = function.get("parameters") or {}
+        tool_name = function.get("name") or tool.get("name") or "?"
+        tool_description = function.get("description") or tool.get("description") or ""
+        parameters = function.get("parameters") or tool.get("parameters") or {}
         required = parameters.get("required") or []
         props = parameters.get("properties") or {}
 
@@ -275,9 +279,9 @@ def log_request(req: Request) -> str:
                 f"{param_value.get('description', '')}",
             )
         table.add_row(
-            f"{function.get('name', '?')}",
+            f"{tool_name}",
             Group(
-                Markdown(escape_tags(function.get("description") or "")),
+                Markdown(escape_tags(tool_description)),
                 params_table,
             ),
         )
