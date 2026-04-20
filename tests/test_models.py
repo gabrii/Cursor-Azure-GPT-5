@@ -19,6 +19,8 @@ class TestModels:
             headers={"Authorization": "Bearer test-service-api-key"},
         )
         content = response.body.decode("utf-8")
+        assert '"gpt-5.4"' in content
+        assert '"gpt-5.4-mini"' in content
         assert '"gpt-high"' in content
         assert '"gpt-medium"' in content
         assert '"gpt-low"' in content

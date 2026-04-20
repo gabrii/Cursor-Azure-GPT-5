@@ -21,7 +21,7 @@ This project originates from Cursor's lack of support for Azure models that are 
 > [!IMPORTANT]
 > **Azure** now supports the **Completions API** for the models `gpt-5`, `gpt-5-mini`, and `gpt-5-nano`.
 > 
-> They can now be used directly in Cursor, but without the ability to change the _Reasoning Effort_ / _Verbosity_ / _Summary Level_. To do so, you can still use this project.
+> Cursor now sends native `reasoning` settings for supported models, and this proxy forwards those values to Azure's **Responses API**. You can keep using this project to access Azure deployments while letting Cursor's built-in thinking controls drive the request.
 >
 > The models `gpt-5-pro` and `gpt-5-codex` remain available only through the **Responses API**, but work great with this project (see list of specific model limitations in the next section).
 
@@ -49,7 +49,7 @@ _(This matrix is automatically generated, and updated after every new model rele
 
 ## Feature highlights
 
-- Switching between `high`/`medium`/`low`/`minimal` reasoning effort levels by selecting different models in Cursor.
+- Forwarding Cursor's native reasoning effort selection (`low` / `medium` / `high` / etc.) directly from the inbound request to Azure.
 - Configuring different _reasoning summary_ levels (`auto`, `detailed`, `concise`).
 - Displaying _reasoning summaries_ in Cursor natively, like any other reasoning model.
 - Production-ready, so you can share the service among different users in an organization.
@@ -127,7 +127,9 @@ In addition to updating the OpenAI Base URL, you need to:
 
 2. Ensure the toggles for both options are **on**, as shown in the previous image.
 
-3. Add the custom models called exactly `gpt-high`, `gpt-medium`, and `gpt-low`, as shown in the previous image. You can also create `gpt-minimal` for minimal reasoning effort for models that support it. You don't need to remove other models.
+3. Add the proxy models you want Cursor to call, such as `gpt-5.4` and `gpt-5.4-mini`, as shown in the previous image. Cursor's own thinking UI now controls `reasoning.effort`, so you do not need a separate model per thinking level.
+
+4. If you already created legacy custom models such as `gpt-high`, `gpt-medium`, `gpt-low`, or `gpt-minimal`, they still work for backwards compatibility, but new setups should prefer bare model names plus Cursor's native thinking selector.
 
 ### 4. Running the service
 

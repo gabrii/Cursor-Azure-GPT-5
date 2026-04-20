@@ -126,6 +126,7 @@ class RequestAdapter:
         if tools:
             sample = tools[0] if isinstance(tools[0], dict) else {}
             from ..common.logging import console
+
             console.print(
                 f"[bold yellow]TOOL_DEBUG:[/bold yellow] count={len(tools)}, "
                 f"first_keys={list(sample.keys())[:10]}, type={sample.get('type')}, "
@@ -142,6 +143,7 @@ class RequestAdapter:
                     out.append(tool)
                 else:
                     from ..common.logging import console
+
                     console.print(
                         f"[bold red]TOOL_SKIPPED:[/bold red] tool has no 'function' and no 'name'. "
                         f"keys={list(tool.keys())[:10]}"
@@ -157,6 +159,7 @@ class RequestAdapter:
             out.append(transformed)
 
         from ..common.logging import console
+
         console.print(
             f"[bold yellow]TOOL_TRANSFORM:[/bold yellow] {len(tools)} tools in → {len(out)} tools out"
         )
@@ -165,6 +168,81 @@ class RequestAdapter:
                 f"[bold yellow]TOOL_TRANSFORM:[/bold yellow] first out name={out[0].get('name')}"
             )
         return out
+
+    def _resolve_model_and_reasoning(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """Resolve the Azure deployment and reasoning settings for this request."""
+        settings = current_app.config
+        inbound_model = payload.get("model")
+
+        model_map = {
+            # gpt-5.4 variants
+            "gpt-5.4-none": ("gpt-5.4", "none"),
+            "gpt-5.4-low": ("gpt-5.4", "low"),
+            "gpt-5.4-medium": ("gpt-5.4", "medium"),
+            "gpt-5.4-high": ("gpt-5.4", "high"),
+            "gpt-5.4-xhigh": ("gpt-5.4", "xhigh"),
+            # bare names now rely on Cursor's native reasoning field
+            "gpt-5.4": ("gpt-5.4", None),
+            # gpt-5.4-mini variants
+            "gpt-5.4-mini-none": ("gpt-5.4-mini", "none"),
+            "gpt-5.4-mini-low": ("gpt-5.4-mini", "low"),
+            "gpt-5.4-mini-medium": ("gpt-5.4-mini", "medium"),
+            "gpt-5.4-mini-high": ("gpt-5.4-mini", "high"),
+            "gpt-5.4-mini-xhigh": ("gpt-5.4-mini", "xhigh"),
+            # bare names now rely on Cursor's native reasoning field
+            "gpt-5.4-mini": ("gpt-5.4-mini", None),
+            # Legacy names → use env AZURE_DEPLOYMENT for backwards compatibility
+            "gpt-high": (settings["AZURE_DEPLOYMENT"], "high"),
+            "gpt-medium": (settings["AZURE_DEPLOYMENT"], "medium"),
+            "gpt-low": (settings["AZURE_DEPLOYMENT"], "low"),
+            "gpt-minimal": (settings["AZURE_DEPLOYMENT"], "minimal"),
+        }
+
+        model_key = (inbound_model or "").lower()
+        if model_key not in model_map:
+            raise CursorConfigurationError(
+                "Model name must be one of:\n"
+                "  gpt-5.4, gpt-5.4-none, gpt-5.4-low, gpt-5.4-medium, gpt-5.4-high, gpt-5.4-xhigh\n"
+                "  gpt-5.4-mini, gpt-5.4-mini-none, gpt-5.4-mini-low, "
+                "gpt-5.4-mini-medium, gpt-5.4-mini-high, gpt-5.4-mini-xhigh\n"
+                "  gpt-high, gpt-medium, gpt-low, gpt-minimal\n"
+                f"\nGot: {inbound_model}"
+            )
+
+        azure_deployment, model_effort = model_map[model_key]
+        inbound_reasoning = (
+            payload.get("reasoning") if isinstance(payload, dict) else None
+        )
+        inbound_effort = (
+            inbound_reasoning.get("effort")
+            if isinstance(inbound_reasoning, dict)
+            else None
+        )
+        inbound_summary = (
+            inbound_reasoning.get("summary")
+            if isinstance(inbound_reasoning, dict)
+            else None
+        )
+
+        if inbound_effort is not None:
+            reasoning_effort = inbound_effort
+            reasoning_source = "native_request"
+        elif model_effort is not None:
+            reasoning_effort = model_effort
+            reasoning_source = "legacy_model_suffix"
+        else:
+            raise CursorConfigurationError(
+                "Cursor must send reasoning.effort when using bare model names like "
+                f"{inbound_model}."
+            )
+
+        return {
+            "azure_deployment": azure_deployment,
+            "reasoning_effort": reasoning_effort,
+            "reasoning_source": reasoning_source,
+            "inbound_reasoning_present": isinstance(inbound_reasoning, dict),
+            "inbound_summary": inbound_summary,
+        }
 
     # ---- Main adaptation (always streaming completions-like) ----
     def adapt(self, req: Request) -> Dict[str, Any]:
@@ -210,60 +288,22 @@ class RequestAdapter:
         else:
             responses_body = {"input": "", "instructions": None}
 
-        # ---- Model + reasoning effort routing ----
-        # Cursor model name encodes both the Azure deployment and reasoning effort.
-        #
-        # Supported reasoning efforts per OpenAI docs (gpt-5.4 model page):
-        #   none (default, no reasoning), low, medium, high, xhigh
-        #
-        # Names in Cursor:
-        #   gpt-5.4-none / gpt-5.4-low / gpt-5.4-medium / gpt-5.4-high / gpt-5.4-xhigh
-        #   gpt-5.4-mini-none / gpt-5.4-mini-low / ... / gpt-5.4-mini-xhigh
-
-        MODEL_MAP = {
-            # gpt-5.4 variants
-            "gpt-5.4-none": ("gpt-5.4", "none"),
-            "gpt-5.4-low": ("gpt-5.4", "low"),
-            "gpt-5.4-medium": ("gpt-5.4", "medium"),
-            "gpt-5.4-high": ("gpt-5.4", "high"),
-            "gpt-5.4-xhigh": ("gpt-5.4", "xhigh"),
-            # gpt-5.4 bare name (Cursor strips suffixes) → effort from control panel
-            "gpt-5.4": ("gpt-5.4", None),  # None = read from EFFORT_SETTINGS
-            # gpt-5.4-mini variants
-            "gpt-5.4-mini-none": ("gpt-5.4-mini", "none"),
-            "gpt-5.4-mini-low": ("gpt-5.4-mini", "low"),
-            "gpt-5.4-mini-medium": ("gpt-5.4-mini", "medium"),
-            "gpt-5.4-mini-high": ("gpt-5.4-mini", "high"),
-            "gpt-5.4-mini-xhigh": ("gpt-5.4-mini", "xhigh"),
-            # gpt-5.4-mini bare name → effort from control panel
-            "gpt-5.4-mini": ("gpt-5.4-mini", None),  # None = read from EFFORT_SETTINGS
-            # Legacy names → use env AZURE_DEPLOYMENT for backwards compatibility
-            "gpt-high": (settings["AZURE_DEPLOYMENT"], "high"),
-            "gpt-medium": (settings["AZURE_DEPLOYMENT"], "medium"),
-            "gpt-low": (settings["AZURE_DEPLOYMENT"], "low"),
-            "gpt-minimal": (settings["AZURE_DEPLOYMENT"], "minimal"),
-        }
-
-        model_key = (inbound_model or "").lower()
-        if model_key not in MODEL_MAP:
-            raise CursorConfigurationError(
-                "Model name must be one of:\n"
-                "  gpt-5.4-none, gpt-5.4-low, gpt-5.4-medium, gpt-5.4-high, gpt-5.4-xhigh\n"
-                "  gpt-5.4-mini-none, gpt-5.4-mini-low, gpt-5.4-mini-medium, gpt-5.4-mini-high, gpt-5.4-mini-xhigh\n"
-                f"\nGot: {inbound_model}"
-            )
-
-        azure_deployment, reasoning_effort = MODEL_MAP[model_key]
-
-        # If effort is None, read from the runtime control panel setting
-        if reasoning_effort is None:
-            effort_settings = settings.get("EFFORT_SETTINGS", {})
-            reasoning_effort = effort_settings.get(azure_deployment, "medium")
+        resolved_reasoning = self._resolve_model_and_reasoning(payload)
+        azure_deployment = resolved_reasoning["azure_deployment"]
+        reasoning_effort = resolved_reasoning["reasoning_effort"]
+        reasoning_source = resolved_reasoning["reasoning_source"]
+        inbound_reasoning_present = resolved_reasoning["inbound_reasoning_present"]
+        inbound_summary = resolved_reasoning["inbound_summary"]
 
         from ..common.logging import console
 
         console.print(
-            f"[bold cyan]REQUEST:[/bold cyan] model={azure_deployment} effort={reasoning_effort}"
+            "[bold cyan]REQUEST:[/bold cyan] "
+            f"model={azure_deployment} "
+            f"inbound_model={inbound_model} "
+            f"inbound_reasoning={inbound_reasoning_present} "
+            f"effort={reasoning_effort} "
+            f"source={reasoning_source}"
         )
 
         responses_body["model"] = azure_deployment
@@ -283,9 +323,11 @@ class RequestAdapter:
             "effort": reasoning_effort,
         }
 
+        if inbound_summary is not None:
+            responses_body["reasoning"]["summary"] = inbound_summary
         # Concise is not supported by GPT-5,
         # but allowing it for now to be able to test it on other models
-        if settings["AZURE_SUMMARY_LEVEL"] in {"auto", "detailed", "concise"}:
+        elif settings["AZURE_SUMMARY_LEVEL"] in {"auto", "detailed", "concise"}:
             responses_body["reasoning"]["summary"] = settings["AZURE_SUMMARY_LEVEL"]
         else:
             raise ServiceConfigurationError(

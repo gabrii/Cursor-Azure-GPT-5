@@ -264,9 +264,7 @@ class ResponseAdapter:
         if item_type:
             from ..common.logging import console
 
-            console.print(
-                f"[bold yellow]UNKNOWN ITEM TYPE:[/bold yellow] {item_type}"
-            )
+            console.print(f"[bold yellow]UNKNOWN ITEM TYPE:[/bold yellow] {item_type}")
 
         return None
 
@@ -311,7 +309,7 @@ class ResponseAdapter:
 
     # ---- Error event (no "response." prefix!) ----
     def _error(self, obj: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
-        """Handle 'error' SSE event — stream-level error from Azure."""
+        """Handle 'error' SSE event by logging until response.failed arrives."""
         code = obj.get("code", "") if isinstance(obj, dict) else ""
         message = obj.get("message", "") if isinstance(obj, dict) else ""
         from ..common.logging import console as _err_console
@@ -319,12 +317,7 @@ class ResponseAdapter:
         _err_console.print(
             f"[bold red]STREAM ERROR:[/bold red] code={code} message={message}"
         )
-        return self._build_completion_chunk(
-            delta={
-                "role": "assistant",
-                "content": f"\n\n[Stream error: {code} — {message}]",
-            }
-        )
+        return None
 
     # ---- Refusal events ----
     def _refusal__delta(
@@ -383,9 +376,7 @@ class ResponseAdapter:
         """Handle response.mcp_call.failed — log MCP call failure."""
         from ..common.logging import console as _mcp_console
 
-        _mcp_console.print(
-            f"[bold red]MCP CALL FAILED:[/bold red] {str(obj)[:300]}"
-        )
+        _mcp_console.print(f"[bold red]MCP CALL FAILED:[/bold red] {str(obj)[:300]}")
         return None
 
     # ---- MCP list tools failure ----
@@ -414,9 +405,7 @@ class ResponseAdapter:
         )
 
     # ---- Audio events ----
-    def _audio__delta(
-        self, obj: Optional[Dict[str, Any]]
-    ) -> Optional[Dict[str, Any]]:
+    def _audio__delta(self, obj: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
         """Handle response.audio.delta — audio chunk (base64). Pass-through as-is."""
         # Audio can't be represented in Chat Completions text stream; skip.
         return None
@@ -471,13 +460,13 @@ class ResponseAdapter:
         from ..common.logging import console as _inc_console
 
         reason = (
-            obj.get("response", {}).get("incomplete_details", {}).get("reason", "unknown")
+            obj.get("response", {})
+            .get("incomplete_details", {})
+            .get("reason", "unknown")
             if isinstance(obj, dict)
             else "unknown"
         )
-        _inc_console.print(
-            f"[bold red]RESPONSE INCOMPLETE:[/bold red] reason={reason}"
-        )
+        _inc_console.print(f"[bold red]RESPONSE INCOMPLETE:[/bold red] reason={reason}")
         return self._build_completion_chunk(
             delta={
                 "role": "assistant",
@@ -544,6 +533,7 @@ class ResponseAdapter:
                         if not handler:
                             # Log ALL unhandled events so nothing is silently dropped
                             from ..common.logging import console as _evt_console
+
                             # Suppress noisy lifecycle events we intentionally skip
                             if raw_event not in _SILENT_EVENTS:
                                 _evt_console.print(
