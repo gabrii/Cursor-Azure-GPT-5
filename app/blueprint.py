@@ -4,9 +4,7 @@ This module defines the application blueprint, configures logging, and
 forwards incoming HTTP requests to the configured backend implementation.
 """
 
-import os
-
-from flask import Blueprint, Response, current_app, jsonify, request
+from flask import Blueprint, current_app, jsonify, request
 
 from .auth import require_auth
 from .azure.adapter import AzureAdapter
@@ -20,8 +18,6 @@ from .exceptions import ConfigurationError
 
 blueprint = Blueprint("blueprint", __name__)
 
-VALID_EFFORTS = {"none", "low", "medium", "high", "xhigh"}
-
 ALL_METHODS = [
     "GET",
     "POST",
@@ -32,40 +28,6 @@ ALL_METHODS = [
     "HEAD",
     "TRACE",
 ]
-
-
-# ── Control panel (no auth — it's a simple UI, not an API) ──────────────────
-
-
-@blueprint.route("/panel", methods=["GET"])
-def panel():
-    """Serve the reasoning effort control panel."""
-    html_path = os.path.join(os.path.dirname(__file__), "static", "panel.html")
-    with open(html_path) as f:
-        return Response(f.read(), content_type="text/html")
-
-
-@blueprint.route("/settings", methods=["GET"])
-def get_settings():
-    """Return current effort settings as JSON."""
-    return jsonify(current_app.config["EFFORT_SETTINGS"])
-
-
-@blueprint.route("/settings", methods=["POST"])
-def set_settings():
-    """Update reasoning effort for a model."""
-    data = request.get_json(silent=True) or {}
-    model = data.get("model")
-    effort = data.get("effort")
-
-    if model not in current_app.config["EFFORT_SETTINGS"]:
-        return jsonify({"error": f"Unknown model: {model}"}), 400
-    if effort not in VALID_EFFORTS:
-        return jsonify({"error": f"Invalid effort: {effort}"}), 400
-
-    current_app.config["EFFORT_SETTINGS"][model] = effort
-    console.print(f"[bold green]Effort updated:[/bold green] {model} → {effort}")
-    return jsonify(current_app.config["EFFORT_SETTINGS"])
 
 
 # ── Health check ────────────────────────────────────────────────────────────
@@ -97,7 +59,7 @@ def catch_all(path: str):
         init_last_recording()
         increment_last_recording()
         record_payload(request.get_json(silent=True), "downstream_request")
-    except Exception:
+    except (TypeError, ValueError):
         console.print_exception()
         console.print("[yellow]Logging failed but continuing with request[/yellow]")
 
@@ -114,18 +76,14 @@ def catch_all(path: str):
 def models():
     """Return a list of available models."""
     models = [
-        # gpt-5.4 — full model, ordered by reasoning effort ascending
-        "gpt-5.4-none",
-        "gpt-5.4-low",
-        "gpt-5.4-medium",
-        "gpt-5.4-high",
-        "gpt-5.4-xhigh",
-        # gpt-5.4-mini — faster/cheaper, same effort levels
-        "gpt-5.4-mini-none",
-        "gpt-5.4-mini-low",
-        "gpt-5.4-mini-medium",
-        "gpt-5.4-mini-high",
-        "gpt-5.4-mini-xhigh",
+        # Native Cursor reasoning controls set effort in the request payload.
+        "gpt-5.4",
+        "gpt-5.4-mini",
+        # Legacy custom models kept for backwards compatibility.
+        "gpt-high",
+        "gpt-medium",
+        "gpt-low",
+        "gpt-minimal",
     ]
     return jsonify(
         {

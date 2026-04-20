@@ -29,7 +29,10 @@ class TestBadModelName(ReplyBase):
     expected_downstream_status_code = 400
     expected_downstream_response_body = b"""Cursor configuration error, check your Cursor settings.
 
-\tModel name must be either gpt-high, gpt-medium, gpt-low, or gpt-minimal.
+\tModel name must be one of:
+\t  gpt-5.4, gpt-5.4-none, gpt-5.4-low, gpt-5.4-medium, gpt-5.4-high, gpt-5.4-xhigh
+\t  gpt-5.4-mini, gpt-5.4-mini-none, gpt-5.4-mini-low, gpt-5.4-mini-medium, gpt-5.4-mini-high, gpt-5.4-mini-xhigh
+\t  gpt-high, gpt-medium, gpt-low, gpt-minimal
 \t
 \tGot: foo-minimal"""
 
@@ -37,3 +40,20 @@ class TestBadModelName(ReplyBase):
     def downstream_request_body(self) -> str:
         """Set invalid model name in request body."""
         return super().downstream_request_body.replace("gpt-", "foo-")
+
+
+class TestBareModelWithoutReasoning(ReplyBase):
+    """Require Cursor's native reasoning field for bare model names."""
+
+    expected_upstream_request_body = None
+    expected_downstream_status_code = 400
+    expected_downstream_response_body = b"""Cursor configuration error, check your Cursor settings.
+
+\tCursor must send reasoning.effort when using bare model names like gpt-5.4."""
+
+    @property
+    def downstream_request_body(self) -> str:
+        """Use a bare model name without the native reasoning field."""
+        return super().downstream_request_body.replace(
+            '"model": "gpt-minimal"', '"model": "gpt-5.4"'
+        )
