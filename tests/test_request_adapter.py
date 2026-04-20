@@ -52,3 +52,33 @@ def test_request_adapter_requires_reasoning_for_bare_model(app):
         adapter.adapt(request)
 
     assert "Cursor must send reasoning.effort" in str(exc_info.value)
+
+
+def test_request_adapter_strips_include_usage_for_azure(app):
+    """Strip include_usage from stream_options (unsupported by Azure Responses API)."""
+    azure_adapter = AzureAdapter()
+    adapter = azure_adapter.request_adapter
+    request = app.test_request_context(
+        "/chat/completions",
+        method="POST",
+        json={
+            "model": "gpt-5.4",
+            "input": [
+                {"role": "user", "content": [{"type": "input_text", "text": "Hi"}]}
+            ],
+            "reasoning": {"effort": "high", "summary": "auto"},
+            "stream": True,
+            "stream_options": {"include_usage": True, "include_obfuscation": True},
+            "user": "cursor-user",
+        },
+        headers={"Authorization": "Bearer test-service-api-key"},
+    ).request
+
+    request_kwargs = adapter.adapt(request)
+
+    # include_usage must NOT be forwarded to Azure Responses API
+    assert "include_usage" not in request_kwargs["json"]["stream_options"]
+    # include_obfuscation is always forced to False
+    assert request_kwargs["json"]["stream_options"]["include_obfuscation"] is False
+    # The flag should be stored on the shared adapter for the response side
+    assert azure_adapter.include_usage is True
