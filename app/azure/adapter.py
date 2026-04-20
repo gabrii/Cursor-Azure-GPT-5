@@ -47,7 +47,10 @@ class AzureAdapter:
         """
         request_kwargs = self.request_adapter.adapt(req)
 
-        record_payload(request_kwargs.get("json", {}), "upstream_request")
+        try:
+            record_payload(request_kwargs.get("json", {}), "upstream_request")
+        except OSError as exc:
+            console.print(f"[yellow]Recording failed (non-fatal): {exc}[/yellow]")
 
         # Perform upstream request with kwargs directly (no long-lived session)
         resp = requests.request(**request_kwargs)
