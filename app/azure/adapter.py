@@ -28,6 +28,7 @@ class AzureAdapter:
 
     # Per-request state (streaming completions only)
     inbound_model: Optional[str] = None
+    include_usage: bool = False
 
     def __init__(self) -> None:
         """Initialize child adapters and shared state references."""

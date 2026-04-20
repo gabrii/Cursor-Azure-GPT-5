@@ -72,6 +72,7 @@ class ResponseAdapter:
     _chat_completion_id: Optional[str]
     _thinking: bool
     _tool_calls: int
+    _usage: Optional[Dict[str, Any]]
 
     def __init__(self, adapter: Any) -> None:
         """Initialize the adapter with a reference to the AzureAdapter."""
@@ -103,6 +104,24 @@ class ResponseAdapter:
                     "finish_reason": finish_reason,
                 }
             ],
+        }
+
+    def _build_usage_chunk(self) -> Optional[Dict[str, Any]]:
+        """Build a terminal Chat Completions usage chunk."""
+        if not isinstance(self._usage, dict):
+            return None
+
+        return {
+            "id": self._chat_completion_id,
+            "object": "chat.completion.chunk",
+            "created": int(time.time()),
+            "model": self.adapter.inbound_model,
+            "choices": [],
+            "usage": {
+                "prompt_tokens": self._usage.get("input_tokens", 0),
+                "completion_tokens": self._usage.get("output_tokens", 0),
+                "total_tokens": self._usage.get("total_tokens", 0),
+            },
         }
 
     # ---- Helpers for native Responses API tool types ----
@@ -451,6 +470,13 @@ class ResponseAdapter:
             }
         )
 
+    def _completed(self, obj: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+        """Capture final Azure usage for an optional terminal usage chunk."""
+        response = obj.get("response", {}) if isinstance(obj, dict) else {}
+        usage = response.get("usage")
+        self._usage = usage if isinstance(usage, dict) else None
+        return None
+
     def _incomplete(self, obj: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
         """Handle response.incomplete events (model output was truncated).
 
@@ -500,6 +526,7 @@ class ResponseAdapter:
             # Initialize per-stream state on the instance
             self._thinking = False
             self._tool_calls = 0
+            self._usage = None
 
             def gen_dicts() -> Iterable[Dict[str, Any]]:
                 # Initialize message object for completion logging
@@ -601,6 +628,10 @@ class ResponseAdapter:
                         yield self._build_completion_chunk(finish_reason="tool_calls")
                     else:
                         yield self._build_completion_chunk(finish_reason="stop")
+                    if self.adapter.include_usage:
+                        usage_chunk = self._build_usage_chunk()
+                        if usage_chunk is not None:
+                            yield usage_chunk
                     if current_app.config["LOG_COMPLETION"]:
                         live.update(create_message_panel(completion_msg, 1, 1))
 

@@ -73,6 +73,15 @@ class ReplyBase:
         """Normalize the response id and created timestamp (use re.sub)."""
         text = sse_response.decode("utf-8")
         text = re.sub(
+            (
+                r'\ndata: \{"id":"chatcmpl-.*?","object":"chat\.completion\.chunk",'
+                r'"created":\d+,"model":"[^"]+","choices":\[\],"usage":\{.*?\}\}'
+                r"\n\n(?=data: \[DONE\]\n)"
+            ),
+            "\n",
+            text,
+        )
+        text = re.sub(
             r'data: {"id":"chatcmpl-(.*?)"', 'data: {"id":"chatcmpl-ABC123"', text
         )
         text = re.sub(r'"created":(\d+)', '"created":1234567890', text)

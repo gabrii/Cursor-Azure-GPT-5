@@ -340,7 +340,20 @@ class RequestAdapter:
             responses_body["text"] = {"verbosity": settings["AZURE_VERBOSITY_LEVEL"]}
 
         responses_body["store"] = False
-        responses_body["stream_options"] = {"include_obfuscation": False}
+        payload_stream_options = payload.get("stream_options")
+        merged_stream_options = (
+            dict(payload_stream_options)
+            if isinstance(payload_stream_options, dict)
+            else {}
+        )
+        # Cursor may send include_usage (Chat Completions param) which Azure's
+        # Responses API does not accept.  Store the flag on the shared adapter
+        # so the response side can emit a usage chunk, then strip it.
+        self.adapter.include_usage = bool(
+            merged_stream_options.pop("include_usage", False)
+        )
+        merged_stream_options["include_obfuscation"] = False
+        responses_body["stream_options"] = merged_stream_options
 
         if settings["AZURE_TRUNCATION"] == "auto":
             responses_body["truncation"] = settings["AZURE_TRUNCATION"]
