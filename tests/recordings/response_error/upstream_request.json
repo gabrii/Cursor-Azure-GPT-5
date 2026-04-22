@@ -476,5 +476,6 @@
   "stream_options": {
     "include_obfuscation": false
   },
-  "truncation": "auto"
+  "truncation": "auto",
+  "parallel_tool_calls": true
 }
