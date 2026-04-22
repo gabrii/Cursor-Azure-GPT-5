@@ -27,6 +27,7 @@ Check "azure_response" for the error details:
 \t        "tools": "...redacted 11 tools...",
 \t        "tool_choice": "auto",
 \t        "prompt_cache_key": "RED***TED",
+\t        "prompt_cache_retention": "24h",
 \t        "stream": true,
 \t        "reasoning": {
 \t            "effort": "minimal",
@@ -64,6 +65,7 @@ Check "azure_response" for the error details:
 \t        "tools": "...redacted 11 tools...",
 \t        "tool_choice": "auto",
 \t        "prompt_cache_key": "RED***TED",
+\t        "prompt_cache_retention": "24h",
 \t        "stream": true,
 \t        "reasoning": {
 \t            "effort": "minimal",
@@ -99,6 +101,7 @@ Check "azure_response" for the error details:
 \t        "tools": "...redacted 11 tools...",
 \t        "tool_choice": "auto",
 \t        "prompt_cache_key": "RED***TED",
+\t        "prompt_cache_retention": "24h",
 \t        "stream": true,
 \t        "reasoning": {
 \t            "effort": "minimal",

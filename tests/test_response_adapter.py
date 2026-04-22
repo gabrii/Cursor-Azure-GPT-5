@@ -106,6 +106,12 @@ def test_response_adapter_emits_usage_chunk(app):
             "prompt_tokens": 11,
             "completion_tokens": 7,
             "total_tokens": 18,
+            "prompt_tokens_details": {
+                "cached_tokens": 0,
+            },
+            "completion_tokens_details": {
+                "reasoning_tokens": 0,
+            },
         },
     }
     assert upstream.closed is True
