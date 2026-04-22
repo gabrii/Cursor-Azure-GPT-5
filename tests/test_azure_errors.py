@@ -33,7 +33,7 @@ Check "azure_response" for the error details:
 \t            "effort": "minimal",
 \t            "summary": "detailed"
 \t        },
-\t        "store": false,
+\t        "store": true,
 \t        "stream_options": {
 \t            "include_obfuscation": false
 \t        }
@@ -71,7 +71,7 @@ Check "azure_response" for the error details:
 \t            "effort": "minimal",
 \t            "summary": "detailed"
 \t        },
-\t        "store": false,
+\t        "store": true,
 \t        "stream_options": {
 \t            "include_obfuscation": false
 \t        }
@@ -107,7 +107,7 @@ Check "azure_response" for the error details:
 \t            "effort": "minimal",
 \t            "summary": "detailed"
 \t        },
-\t        "store": false,
+\t        "store": true,
 \t        "stream_options": {
 \t            "include_obfuscation": false
 \t        }
