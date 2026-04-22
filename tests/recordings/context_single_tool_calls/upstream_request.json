@@ -641,6 +641,7 @@
   ],
   "tool_choice": "auto",
   "prompt_cache_key": "REDACTED",
+  "prompt_cache_retention": "24h",
   "stream": true,
   "reasoning": {
     "effort": "high",

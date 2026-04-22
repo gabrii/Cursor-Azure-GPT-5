@@ -297,13 +297,17 @@ class RequestAdapter:
 
         from ..common.logging import console
 
+        # Log the user/prompt_cache_key value for cache debugging
+        user_val = payload.get("user")
+        user_preview = repr(user_val)[:60] if user_val else "None"
         console.print(
             "[bold cyan]REQUEST:[/bold cyan] "
             f"model={azure_deployment} "
             f"inbound_model={inbound_model} "
             f"inbound_reasoning={inbound_reasoning_present} "
             f"effort={reasoning_effort} "
-            f"source={reasoning_source}"
+            f"source={reasoning_source} "
+            f"prompt_cache_key={user_preview}"
         )
 
         responses_body["model"] = azure_deployment
@@ -315,6 +319,7 @@ class RequestAdapter:
         responses_body["tool_choice"] = payload.get("tool_choice")
 
         responses_body["prompt_cache_key"] = payload.get("user")
+        responses_body["prompt_cache_retention"] = "24h"
 
         # Always streaming
         responses_body["stream"] = True

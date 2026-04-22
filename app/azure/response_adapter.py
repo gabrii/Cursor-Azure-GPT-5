@@ -107,9 +107,29 @@ class ResponseAdapter:
         }
 
     def _build_usage_chunk(self) -> Optional[Dict[str, Any]]:
-        """Build a terminal Chat Completions usage chunk."""
+        """Build a terminal Chat Completions usage chunk.
+
+        Maps Azure Responses API usage fields to the OpenAI Chat Completions
+        format, including prompt_tokens_details.cached_tokens and
+        completion_tokens_details.reasoning_tokens so Cursor can see cache
+        hit rates and reasoning overhead.
+        """
         if not isinstance(self._usage, dict):
             return None
+
+        input_details = self._usage.get("input_tokens_details")
+        cached_tokens = (
+            input_details.get("cached_tokens", 0)
+            if isinstance(input_details, dict)
+            else 0
+        )
+
+        output_details = self._usage.get("output_tokens_details")
+        reasoning_tokens = (
+            output_details.get("reasoning_tokens", 0)
+            if isinstance(output_details, dict)
+            else 0
+        )
 
         return {
             "id": self._chat_completion_id,
@@ -121,6 +141,12 @@ class ResponseAdapter:
                 "prompt_tokens": self._usage.get("input_tokens", 0),
                 "completion_tokens": self._usage.get("output_tokens", 0),
                 "total_tokens": self._usage.get("total_tokens", 0),
+                "prompt_tokens_details": {
+                    "cached_tokens": cached_tokens,
+                },
+                "completion_tokens_details": {
+                    "reasoning_tokens": reasoning_tokens,
+                },
             },
         }
 
@@ -475,6 +501,25 @@ class ResponseAdapter:
         response = obj.get("response", {}) if isinstance(obj, dict) else {}
         usage = response.get("usage")
         self._usage = usage if isinstance(usage, dict) else None
+
+        # Log usage details including cache hit info
+        if isinstance(usage, dict):
+            input_tokens = usage.get("input_tokens", 0)
+            output_tokens = usage.get("output_tokens", 0)
+            total_tokens = usage.get("total_tokens", 0)
+            input_details = usage.get("input_tokens_details", {})
+            cached_tokens = input_details.get("cached_tokens", 0) if isinstance(input_details, dict) else 0
+            output_details = usage.get("output_tokens_details", {})
+            reasoning_tokens = output_details.get("reasoning_tokens", 0) if isinstance(output_details, dict) else 0
+            cache_pct = (cached_tokens / input_tokens * 100) if input_tokens > 0 else 0
+            from ..common.logging import console as _usage_console
+
+            _usage_console.print(
+                f"[bold green]USAGE:[/bold green] "
+                f"input={input_tokens} (cached={cached_tokens}, {cache_pct:.0f}%) "
+                f"output={output_tokens} (reasoning={reasoning_tokens}) "
+                f"total={total_tokens}"
+            )
         return None
 
     def _incomplete(self, obj: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
