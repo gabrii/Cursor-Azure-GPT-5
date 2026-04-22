@@ -429,7 +429,7 @@
     "effort": "minimal",
     "summary": "detailed"
   },
-  "store": false,
+  "store": true,
   "stream_options": {
     "include_obfuscation": false
   }

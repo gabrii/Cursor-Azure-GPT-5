@@ -300,6 +300,8 @@ class RequestAdapter:
         # Log the user/prompt_cache_key value for cache debugging
         user_val = payload.get("user")
         user_preview = repr(user_val)[:60] if user_val else "None"
+        prev_resp_preview = payload.get("previous_response_id") or "None"
+        has_include = bool(payload.get("include"))
         console.print(
             "[bold cyan]REQUEST:[/bold cyan] "
             f"model={azure_deployment} "
@@ -307,7 +309,9 @@ class RequestAdapter:
             f"inbound_reasoning={inbound_reasoning_present} "
             f"effort={reasoning_effort} "
             f"source={reasoning_source} "
-            f"prompt_cache_key={user_preview}"
+            f"prompt_cache_key={user_preview} "
+            f"previous_response_id={prev_resp_preview} "
+            f"has_include={has_include}"
         )
 
         responses_body["model"] = azure_deployment
@@ -344,7 +348,23 @@ class RequestAdapter:
         if settings["AZURE_VERBOSITY_LEVEL"] in {"low", "high"}:
             responses_body["text"] = {"verbosity": settings["AZURE_VERBOSITY_LEVEL"]}
 
-        responses_body["store"] = False
+        # store=True enables Azure to save responses server-side so that
+        # previous_response_id can reference them, which is critical for
+        # prompt caching across conversation turns.
+        responses_body["store"] = True
+
+        # Forward previous_response_id from the inbound payload so Azure can
+        # use the stored prior response for efficient prefix caching instead
+        # of re-processing the entire input array from scratch each turn.
+        prev_resp_id = payload.get("previous_response_id")
+        if prev_resp_id is not None:
+            responses_body["previous_response_id"] = prev_resp_id
+
+        # Forward the include field (e.g. ["reasoning.encrypted_content"])
+        # so Azure returns all the data Cursor expects.
+        include = payload.get("include")
+        if isinstance(include, list) and include:
+            responses_body["include"] = include
         payload_stream_options = payload.get("stream_options")
         merged_stream_options = (
             dict(payload_stream_options)

@@ -396,7 +396,7 @@
   "text": {
     "verbosity": "high"
   },
-  "store": false,
+  "store": true,
   "stream_options": {
     "include_obfuscation": false
   }
