@@ -297,21 +297,19 @@ class RequestAdapter:
 
         from ..common.logging import console
 
-        # Log the user/prompt_cache_key value for cache debugging
+        # Log request details including cache-relevant fields
         user_val = payload.get("user")
         user_preview = repr(user_val)[:60] if user_val else "None"
-        prev_resp_preview = payload.get("previous_response_id") or "None"
+        prev_resp_id = payload.get("previous_response_id")
+        prev_resp_preview = prev_resp_id or "None"
         has_include = bool(payload.get("include"))
+        input_len = len(raw_input) if raw_input else 0
+        req_fmt = "resp" if "input" in payload else "chat"
         console.print(
-            "[bold cyan]REQUEST:[/bold cyan] "
-            f"model={azure_deployment} "
-            f"inbound_model={inbound_model} "
-            f"inbound_reasoning={inbound_reasoning_present} "
-            f"effort={reasoning_effort} "
-            f"source={reasoning_source} "
-            f"prompt_cache_key={user_preview} "
-            f"previous_response_id={prev_resp_preview} "
-            f"has_include={has_include}"
+            f"[bold cyan]REQUEST:[/bold cyan] "
+            f"model={azure_deployment} effort={reasoning_effort} "
+            f"fmt={req_fmt} items={input_len} "
+            f"prev_id={prev_resp_preview}"
         )
 
         responses_body["model"] = azure_deployment
@@ -356,7 +354,6 @@ class RequestAdapter:
         # Forward previous_response_id from the inbound payload so Azure can
         # use the stored prior response for efficient prefix caching instead
         # of re-processing the entire input array from scratch each turn.
-        prev_resp_id = payload.get("previous_response_id")
         if prev_resp_id is not None:
             responses_body["previous_response_id"] = prev_resp_id
 
