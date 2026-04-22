@@ -650,5 +650,6 @@
   "store": true,
   "stream_options": {
     "include_obfuscation": false
-  }
+  },
+  "parallel_tool_calls": true
 }

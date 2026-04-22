@@ -49,13 +49,22 @@ class RequestAdapter:
         return str(content)
 
     def _copy_request_headers_for_azure(
-        self, src: Request, *, api_key: str
+        self, src: Request, *, api_key: str, session_id: str | None = None
     ) -> Dict[str, str]:
         headers: Dict[str, str] = {k: v for k, v in src.headers.items()}
         headers.pop("Host", None)
         # Azure prefers api-key header
         headers.pop("Authorization", None)
         headers["api-key"] = api_key
+
+        # Cache-routing headers matching Codex CLI (codex-rs).
+        # session_id pins all requests in a conversation to the same Azure
+        # backend machine so the prompt cache is reused across turns.
+        # x-client-request-id provides per-conversation request correlation.
+        if session_id:
+            headers["session_id"] = session_id
+            headers["x-client-request-id"] = session_id
+
         return headers
 
     def _messages_to_responses_input_and_instructions(
@@ -263,8 +272,12 @@ class RequestAdapter:
 
         settings = current_app.config
 
+        # Derive session_id from Cursor's user field (the conversation identifier)
+        # for cache-routing affinity, matching Codex CLI behaviour.
+        session_id = payload.get("user") if isinstance(payload, dict) else None
+
         upstream_headers = self._copy_request_headers_for_azure(
-            req, api_key=settings["AZURE_API_KEY"]
+            req, api_key=settings["AZURE_API_KEY"], session_id=session_id
         )
 
         # Map Chat/Completions to Responses (always streaming)
@@ -362,6 +375,14 @@ class RequestAdapter:
         include = payload.get("include")
         if isinstance(include, list) and include:
             responses_body["include"] = include
+
+        # Codex CLI sends parallel_tool_calls=true; match that behaviour.
+        responses_body["parallel_tool_calls"] = True
+
+        # Forward service_tier if Cursor provides one (e.g. "default", "flex").
+        service_tier = payload.get("service_tier")
+        if service_tier is not None:
+            responses_body["service_tier"] = service_tier
         payload_stream_options = payload.get("stream_options")
         merged_stream_options = (
             dict(payload_stream_options)

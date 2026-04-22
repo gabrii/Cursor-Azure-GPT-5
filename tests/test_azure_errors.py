@@ -34,6 +34,7 @@ Check "azure_response" for the error details:
 \t            "summary": "detailed"
 \t        },
 \t        "store": true,
+\t        "parallel_tool_calls": true,
 \t        "stream_options": {
 \t            "include_obfuscation": false
 \t        }
@@ -72,6 +73,7 @@ Check "azure_response" for the error details:
 \t            "summary": "detailed"
 \t        },
 \t        "store": true,
+\t        "parallel_tool_calls": true,
 \t        "stream_options": {
 \t            "include_obfuscation": false
 \t        }
@@ -108,6 +110,7 @@ Check "azure_response" for the error details:
 \t            "summary": "detailed"
 \t        },
 \t        "store": true,
+\t        "parallel_tool_calls": true,
 \t        "stream_options": {
 \t            "include_obfuscation": false
 \t        }
