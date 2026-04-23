@@ -272,12 +272,20 @@ class RequestAdapter:
 
         settings = current_app.config
 
-        # Derive session_id from Cursor's user field (the conversation identifier)
-        # for cache-routing affinity, matching Codex CLI behaviour.
-        session_id = payload.get("user") if isinstance(payload, dict) else None
+        # Derive conversation_id from Cursor's metadata.cursorConversationId.
+        # This is unique per conversation, matching Codex CLI's use of
+        # conversation_id for session_id, x-client-request-id, and
+        # prompt_cache_key.  The ``user`` field is a per-*user* hash that is
+        # the same across all conversations and must NOT be used for routing.
+        metadata = payload.get("metadata") if isinstance(payload, dict) else None
+        conversation_id = (
+            metadata.get("cursorConversationId")
+            if isinstance(metadata, dict)
+            else None
+        )
 
         upstream_headers = self._copy_request_headers_for_azure(
-            req, api_key=settings["AZURE_API_KEY"], session_id=session_id
+            req, api_key=settings["AZURE_API_KEY"], session_id=conversation_id
         )
 
         # Map Chat/Completions to Responses (always streaming)
@@ -311,18 +319,14 @@ class RequestAdapter:
         from ..common.logging import console
 
         # Log request details including cache-relevant fields
-        user_val = payload.get("user")
-        user_preview = repr(user_val)[:60] if user_val else "None"
-        prev_resp_id = payload.get("previous_response_id")
-        prev_resp_preview = prev_resp_id or "None"
-        has_include = bool(payload.get("include"))
         input_len = len(raw_input) if raw_input else 0
         req_fmt = "resp" if "input" in payload else "chat"
+        conv_preview = conversation_id[:12] + "…" if conversation_id else "None"
         console.print(
             f"[bold cyan]REQUEST:[/bold cyan] "
             f"model={azure_deployment} effort={reasoning_effort} "
             f"fmt={req_fmt} items={input_len} "
-            f"prev_id={prev_resp_preview}"
+            f"conv={conv_preview}"
         )
 
         responses_body["model"] = azure_deployment
@@ -333,8 +337,12 @@ class RequestAdapter:
         )
         responses_body["tool_choice"] = payload.get("tool_choice")
 
-        responses_body["prompt_cache_key"] = payload.get("user")
-        responses_body["prompt_cache_retention"] = "24h"
+        # Matching Codex CLI: prompt_cache_key = conversation_id so each
+        # conversation gets its own cache partition on the Azure backend.
+        # Only set when we actually have a conversation ID; sending None
+        # could confuse Azure.
+        if conversation_id:
+            responses_body["prompt_cache_key"] = conversation_id
 
         # Always streaming
         responses_body["stream"] = True
@@ -359,16 +367,9 @@ class RequestAdapter:
         if settings["AZURE_VERBOSITY_LEVEL"] in {"low", "high"}:
             responses_body["text"] = {"verbosity": settings["AZURE_VERBOSITY_LEVEL"]}
 
-        # store=True enables Azure to save responses server-side so that
-        # previous_response_id can reference them, which is critical for
-        # prompt caching across conversation turns.
+        # Matching Codex CLI: store=True for Azure enables server-side
+        # response storage which is used for prompt caching.
         responses_body["store"] = True
-
-        # Forward previous_response_id from the inbound payload so Azure can
-        # use the stored prior response for efficient prefix caching instead
-        # of re-processing the entire input array from scratch each turn.
-        if prev_resp_id is not None:
-            responses_body["previous_response_id"] = prev_resp_id
 
         # Forward the include field (e.g. ["reasoning.encrypted_content"])
         # so Azure returns all the data Cursor expects.
