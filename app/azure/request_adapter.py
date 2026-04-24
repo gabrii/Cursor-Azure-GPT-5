@@ -11,6 +11,7 @@ from typing import Any, Dict, List
 from flask import Request, current_app
 
 from ..exceptions import CursorConfigurationError, ServiceConfigurationError
+from ..models import SUPPORTED_MODELS, SUPPORTED_MODELS_TEXT
 
 
 class RequestAdapter:
@@ -183,42 +184,16 @@ class RequestAdapter:
         settings = current_app.config
         inbound_model = payload.get("model")
 
-        model_map = {
-            # gpt-5.4 variants
-            "gpt-5.4-none": ("gpt-5.4", "none"),
-            "gpt-5.4-low": ("gpt-5.4", "low"),
-            "gpt-5.4-medium": ("gpt-5.4", "medium"),
-            "gpt-5.4-high": ("gpt-5.4", "high"),
-            "gpt-5.4-xhigh": ("gpt-5.4", "xhigh"),
-            # bare names now rely on Cursor's native reasoning field
-            "gpt-5.4": ("gpt-5.4", None),
-            # gpt-5.4-mini variants
-            "gpt-5.4-mini-none": ("gpt-5.4-mini", "none"),
-            "gpt-5.4-mini-low": ("gpt-5.4-mini", "low"),
-            "gpt-5.4-mini-medium": ("gpt-5.4-mini", "medium"),
-            "gpt-5.4-mini-high": ("gpt-5.4-mini", "high"),
-            "gpt-5.4-mini-xhigh": ("gpt-5.4-mini", "xhigh"),
-            # bare names now rely on Cursor's native reasoning field
-            "gpt-5.4-mini": ("gpt-5.4-mini", None),
-            # Legacy names → use env AZURE_DEPLOYMENT for backwards compatibility
-            "gpt-high": (settings["AZURE_DEPLOYMENT"], "high"),
-            "gpt-medium": (settings["AZURE_DEPLOYMENT"], "medium"),
-            "gpt-low": (settings["AZURE_DEPLOYMENT"], "low"),
-            "gpt-minimal": (settings["AZURE_DEPLOYMENT"], "minimal"),
-        }
-
         model_key = (inbound_model or "").lower()
-        if model_key not in model_map:
+        if model_key not in SUPPORTED_MODELS:
             raise CursorConfigurationError(
                 "Model name must be one of:\n"
-                "  gpt-5.4, gpt-5.4-none, gpt-5.4-low, gpt-5.4-medium, gpt-5.4-high, gpt-5.4-xhigh\n"
-                "  gpt-5.4-mini, gpt-5.4-mini-none, gpt-5.4-mini-low, "
-                "gpt-5.4-mini-medium, gpt-5.4-mini-high, gpt-5.4-mini-xhigh\n"
-                "  gpt-high, gpt-medium, gpt-low, gpt-minimal\n"
+                f"{SUPPORTED_MODELS_TEXT}\n"
                 f"\nGot: {inbound_model}"
             )
 
-        azure_deployment, model_effort = model_map[model_key]
+        deployment_map = settings["AZURE_MODEL_DEPLOYMENTS"]
+        azure_deployment = deployment_map[model_key]
         inbound_reasoning = (
             payload.get("reasoning") if isinstance(payload, dict) else None
         )
@@ -235,10 +210,6 @@ class RequestAdapter:
 
         if inbound_effort is not None:
             reasoning_effort = inbound_effort
-            reasoning_source = "native_request"
-        elif model_effort is not None:
-            reasoning_effort = model_effort
-            reasoning_source = "legacy_model_suffix"
         else:
             raise CursorConfigurationError(
                 "Cursor must send reasoning.effort when using bare model names like "
@@ -248,8 +219,6 @@ class RequestAdapter:
         return {
             "azure_deployment": azure_deployment,
             "reasoning_effort": reasoning_effort,
-            "reasoning_source": reasoning_source,
-            "inbound_reasoning_present": isinstance(inbound_reasoning, dict),
             "inbound_summary": inbound_summary,
         }
 
@@ -279,9 +248,7 @@ class RequestAdapter:
         # the same across all conversations and must NOT be used for routing.
         metadata = payload.get("metadata") if isinstance(payload, dict) else None
         conversation_id = (
-            metadata.get("cursorConversationId")
-            if isinstance(metadata, dict)
-            else None
+            metadata.get("cursorConversationId") if isinstance(metadata, dict) else None
         )
 
         upstream_headers = self._copy_request_headers_for_azure(
@@ -312,8 +279,6 @@ class RequestAdapter:
         resolved_reasoning = self._resolve_model_and_reasoning(payload)
         azure_deployment = resolved_reasoning["azure_deployment"]
         reasoning_effort = resolved_reasoning["reasoning_effort"]
-        reasoning_source = resolved_reasoning["reasoning_source"]
-        inbound_reasoning_present = resolved_reasoning["inbound_reasoning_present"]
         inbound_summary = resolved_reasoning["inbound_summary"]
 
         from ..common.logging import console

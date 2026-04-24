@@ -1,5 +1,5 @@
 {
-  "model": "gpt-minimal",
+  "model": "gpt-5",
   "temperature": 0,
   "user": "REDACTED",
   "messages": [
@@ -18,5 +18,8 @@
   ],
   "tools": null,
   "tool_choice": "auto",
-  "stream": true
+  "stream": true,
+  "reasoning": {
+    "effort": "minimal"
+  }
 }

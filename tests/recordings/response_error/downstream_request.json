@@ -1,5 +1,5 @@
 {
-  "model": "gpt-medium",
+  "model": "gpt-5.1-codex",
   "temperature": 0,
   "user": "REDACTED",
   "messages": [
@@ -474,5 +474,8 @@
     }
   ],
   "tool_choice": "auto",
-  "stream": true
+  "stream": true,
+  "reasoning": {
+    "effort": "medium"
+  }
 }

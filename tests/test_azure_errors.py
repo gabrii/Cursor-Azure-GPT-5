@@ -26,8 +26,6 @@ Check "azure_response" for the error details:
 \t        "model": "gpt-5",
 \t        "tools": "...redacted 11 tools...",
 \t        "tool_choice": "auto",
-\t        "prompt_cache_key": "RED***TED",
-\t        "prompt_cache_retention": "24h",
 \t        "stream": true,
 \t        "reasoning": {
 \t            "effort": "minimal",
@@ -37,12 +35,11 @@ Check "azure_response" for the error details:
 \t        "parallel_tool_calls": true,
 \t        "stream_options": {
 \t            "include_obfuscation": false
-\t        }
+\t        },
+\t        "prompt_cache_key": "no ***key"
 \t    }
 \t}
-If the issue persists, report it to:
-\thttps://github.com/gabrii/Cursor-Azure-GPT-5/issues
-Including all the details above"""
+If the issue persists, report it with the details above."""
 
 
 class TestError401(ReplyBase):
@@ -65,8 +62,6 @@ Check "azure_response" for the error details:
 \t        "model": "gpt-5",
 \t        "tools": "...redacted 11 tools...",
 \t        "tool_choice": "auto",
-\t        "prompt_cache_key": "RED***TED",
-\t        "prompt_cache_retention": "24h",
 \t        "stream": true,
 \t        "reasoning": {
 \t            "effort": "minimal",
@@ -76,12 +71,11 @@ Check "azure_response" for the error details:
 \t        "parallel_tool_calls": true,
 \t        "stream_options": {
 \t            "include_obfuscation": false
-\t        }
+\t        },
+\t        "prompt_cache_key": "no ***key"
 \t    }
 \t}
-If the issue persists, report it to:
-\thttps://github.com/gabrii/Cursor-Azure-GPT-5/issues
-Including all the details above"""
+If the issue persists, report it with the details above."""
 
 
 class TestError500(ReplyBase):
@@ -102,8 +96,6 @@ Check "azure_response" for the error details:
 \t        "model": "gpt-5",
 \t        "tools": "...redacted 11 tools...",
 \t        "tool_choice": "auto",
-\t        "prompt_cache_key": "RED***TED",
-\t        "prompt_cache_retention": "24h",
 \t        "stream": true,
 \t        "reasoning": {
 \t            "effort": "minimal",
@@ -113,12 +105,11 @@ Check "azure_response" for the error details:
 \t        "parallel_tool_calls": true,
 \t        "stream_options": {
 \t            "include_obfuscation": false
-\t        }
+\t        },
+\t        "prompt_cache_key": "no ***key"
 \t    }
 \t}
-If the issue persists, report it to:
-\thttps://github.com/gabrii/Cursor-Azure-GPT-5/issues
-Including all the details above"""
+If the issue persists, report it with the details above."""
 
 
 class TestCompletionError(ReplyBase):
@@ -126,7 +117,7 @@ class TestCompletionError(ReplyBase):
 
     def modify_settings(self, app) -> None:
         """Set gpt-5.1-codex model and auto truncation, which is currently causing this issue."""
-        app.config["AZURE_DEPLOYMENT"] = "gpt-5.1-codex"
+        app.config["AZURE_MODEL_DEPLOYMENTS"]["gpt-5"] = "gpt-5.1-codex"
         app.config["AZURE_TRUNCATION"] = "auto"
 
     recording = "response_error"
