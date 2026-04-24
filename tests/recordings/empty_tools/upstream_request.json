@@ -23,16 +23,14 @@
   "model": "gpt-5",
   "tools": [],
   "tool_choice": "auto",
-  "prompt_cache_key": "REDACTED",
-  "prompt_cache_retention": "24h",
   "stream": true,
   "reasoning": {
     "effort": "minimal",
     "summary": "detailed"
   },
   "store": true,
+  "parallel_tool_calls": true,
   "stream_options": {
     "include_obfuscation": false
-  },
-  "parallel_tool_calls": true
+  }
 }

@@ -15,6 +15,7 @@ from .common.recording import (
     record_payload,
 )
 from .exceptions import ConfigurationError
+from .models import SUPPORTED_MODELS
 
 blueprint = Blueprint("blueprint", __name__)
 
@@ -75,16 +76,6 @@ def catch_all(path: str):
 @require_auth
 def models():
     """Return a list of available models."""
-    models = [
-        # Native Cursor reasoning controls set effort in the request payload.
-        "gpt-5.4",
-        "gpt-5.4-mini",
-        # Legacy custom models kept for backwards compatibility.
-        "gpt-high",
-        "gpt-medium",
-        "gpt-low",
-        "gpt-minimal",
-    ]
     return jsonify(
         {
             "object": "list",
@@ -95,7 +86,7 @@ def models():
                     "created": 1686935002,
                     "owned_by": "openai",
                 }
-                for model in models
+                for model in SUPPORTED_MODELS
             ],
         }
     )

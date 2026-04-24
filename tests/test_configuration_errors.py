@@ -3,6 +3,10 @@
 See: http://webtest.readthedocs.org/
 """
 
+import json
+
+from app.models import SUPPORTED_MODELS_TEXT
+
 from .replay_base import ReplyBase
 
 
@@ -21,25 +25,35 @@ class TestBadSummaryLevel(ReplyBase):
         """Set invalid summary level in settings."""
         app.config["AZURE_SUMMARY_LEVEL"] = "foo"
 
+    @property
+    def downstream_request_body(self) -> str:
+        """Use a supported bare model with native reasoning."""
+        return super().downstream_request_body.replace(
+            '"model": "gpt-5"',
+            '"model": "gpt-5.4", "reasoning": {"effort": "medium"}',
+        )
+
 
 class TestBadModelName(ReplyBase):
     """Test a single ping-pong interaction, no tool calls."""
 
     expected_upstream_request_body = None
     expected_downstream_status_code = 400
-    expected_downstream_response_body = b"""Cursor configuration error, check your Cursor settings.
-
-\tModel name must be one of:
-\t  gpt-5.4, gpt-5.4-none, gpt-5.4-low, gpt-5.4-medium, gpt-5.4-high, gpt-5.4-xhigh
-\t  gpt-5.4-mini, gpt-5.4-mini-none, gpt-5.4-mini-low, gpt-5.4-mini-medium, gpt-5.4-mini-high, gpt-5.4-mini-xhigh
-\t  gpt-high, gpt-medium, gpt-low, gpt-minimal
-\t
-\tGot: foo-minimal"""
+    expected_downstream_response_body = (
+        "Cursor configuration error, check your Cursor settings.\n\n\t"
+        + (
+            "Model name must be one of:\n"
+            f"{SUPPORTED_MODELS_TEXT}\n\n"
+            "Got: foo-minimal"
+        ).replace("\n", "\n\t")
+    ).encode()
 
     @property
     def downstream_request_body(self) -> str:
         """Set invalid model name in request body."""
-        return super().downstream_request_body.replace("gpt-", "foo-")
+        return super().downstream_request_body.replace(
+            '"model": "gpt-5"', '"model": "foo-minimal"'
+        )
 
 
 class TestBareModelWithoutReasoning(ReplyBase):
@@ -54,6 +68,7 @@ class TestBareModelWithoutReasoning(ReplyBase):
     @property
     def downstream_request_body(self) -> str:
         """Use a bare model name without the native reasoning field."""
-        return super().downstream_request_body.replace(
-            '"model": "gpt-minimal"', '"model": "gpt-5.4"'
-        )
+        payload = json.loads(super().downstream_request_body)
+        payload["model"] = "gpt-5.4"
+        payload.pop("reasoning", None)
+        return json.dumps(payload, indent=2) + "\n"

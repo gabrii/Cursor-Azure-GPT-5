@@ -93,9 +93,7 @@ class AzureAdapter:
         error_message = (
             '\nCheck "azure_response" for the error details:\n'
             f"\t{report_pretty}\n"
-            "If the issue persists, report it to:\n"
-            "\thttps://github.com/gabrii/Cursor-Azure-GPT-5/issues\n"
-            "Including all the details above"
+            "If the issue persists, report it with the details above."
         )
         console.rule(f"[red]Request failed with status code {resp.status_code}[/red]")
         console.print(error_message)

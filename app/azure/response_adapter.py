@@ -64,8 +64,7 @@ class ResponseAdapter:
     """Handle post-request adaptation from Azure Responses API to Flask.
 
     Translates Azure SSE events into OpenAI Chat Completions chunks, including
-    reasoning <think> tags and function call streaming. Direct /v1/responses
-    streams are passed through.
+    reasoning <think> tags and function call streaming.
     """
 
     # Per-request chat completion id (for streaming)
@@ -349,7 +348,6 @@ class ResponseAdapter:
         self, obj: Optional[Dict[str, Any]]
     ) -> Optional[Dict[str, Any]]:
         """Handle response.custom_tool_call_input.done — end marker, no-op."""
-        self._custom_tool_input_buf = ""
         return None
 
     # ---- Error event (no "response." prefix!) ----
@@ -508,9 +506,17 @@ class ResponseAdapter:
             output_tokens = usage.get("output_tokens", 0)
             total_tokens = usage.get("total_tokens", 0)
             input_details = usage.get("input_tokens_details", {})
-            cached_tokens = input_details.get("cached_tokens", 0) if isinstance(input_details, dict) else 0
+            cached_tokens = (
+                input_details.get("cached_tokens", 0)
+                if isinstance(input_details, dict)
+                else 0
+            )
             output_details = usage.get("output_tokens_details", {})
-            reasoning_tokens = output_details.get("reasoning_tokens", 0) if isinstance(output_details, dict) else 0
+            reasoning_tokens = (
+                output_details.get("reasoning_tokens", 0)
+                if isinstance(output_details, dict)
+                else 0
+            )
             cache_pct = (cached_tokens / input_tokens * 100) if input_tokens > 0 else 0
             from ..common.logging import console as _usage_console
 
@@ -557,7 +563,7 @@ class ResponseAdapter:
                 + "_**"
                 + error.get("message", "")
                 + "**_\n\n\n"
-                "This might be a genuine error on Azure's side and not a problem of Cursor-Azure-GPT-5.",
+                "This may be an Azure-side issue rather than a proxy bug.",
             }
         )
 

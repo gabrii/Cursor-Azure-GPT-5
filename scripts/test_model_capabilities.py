@@ -21,8 +21,8 @@ Required environment variables (from parent environment or .env):
     SERVICE_API_KEY: API key for authenticating to this service
 
 Optional environment variables:
-    MODELS_TO_TEST: Comma-separated list of model deployment names to test
-                    (default: all gpt-5 models)
+    MODELS_TO_TEST: Comma-separated list of public model ids to test
+                    (default: the proxy's supported model ids)
 """
 
 import json
@@ -51,18 +51,19 @@ console = Console()
 
 # Models to test (can be overridden via MODELS_TO_TEST env var)
 DEFAULT_MODELS = [
-    "gpt-5.2",
-    "gpt-5.2-chat",
+    "gpt-5",
+    "gpt-5-mini",
+    "gpt-5-codex",
     "gpt-5.1",
     "gpt-5.1-codex",
-    "gpt-5.1-codex-mini",
     "gpt-5.1-codex-max",
-    "gpt-5",
-    # "gpt-5-chat-global",
-    "gpt-5-nano",
-    "gpt-5-mini-global",
-    "gpt-5-pro",
-    "gpt-5-codex",
+    "gpt-5.1-codex-mini",
+    "gpt-5.2",
+    "gpt-5.2-codex",
+    "gpt-5.3-codex",
+    "gpt-5.4",
+    "gpt-5.4-mini",
+    "gpt-5.4-nano",
 ]
 
 # Base configuration (expected to work for all models)
@@ -182,7 +183,7 @@ def stop_service(proc: subprocess.Popen) -> None:
 
 
 def send_test_request(
-    host: str, port: int, model_name: str, api_key: str
+    host: str, port: int, model_name: str, api_key: str, reasoning_effort: str
 ) -> tuple[bool, str, str]:
     """
     Send a simple chat completion request.
@@ -199,6 +200,7 @@ def send_test_request(
         "model": model_name,
         "messages": [{"role": "user", "content": "Reply with exactly: pong"}],
         "stream": True,
+        "reasoning": {"effort": reasoning_effort},
     }
 
     try:
@@ -272,18 +274,18 @@ def run_single_test(
     port: int,
     api_key: str,
     model: str,
-    env_config: dict[str, str],
     reasoning_effort: str,
     category: str,
     tested_value: str,
     caps: ModelCapabilities,
 ) -> CapabilityTestResult:
     """Run a single test and update capabilities."""
-    model_name = f"gpt-{reasoning_effort}"
-    success, error, snippet = send_test_request(host, port, model_name, api_key)
+    success, error, snippet = send_test_request(
+        host, port, model, api_key, reasoning_effort
+    )
 
     result = CapabilityTestResult(
-        model=model.replace("-global", ""),
+        model=model,
         category=category,
         tested_value=tested_value,
         success=success,
@@ -358,7 +360,10 @@ def run_tests(models: list[str]) -> dict[str, ModelCapabilities]:
         # Test 1: All reasoning efforts with base env config
         # =====================================================================
         console.print("\n  [cyan]Testing reasoning efforts...[/cyan]")
-        env_config = {**BASE_CONFIG, "AZURE_DEPLOYMENT": model}
+        env_config = {
+            **BASE_CONFIG,
+            "AZURE_MODEL_DEPLOYMENTS": json.dumps({model: model}),
+        }
 
         proc = start_service(env_config, port)
         try:
@@ -382,7 +387,6 @@ def run_tests(models: list[str]) -> dict[str, ModelCapabilities]:
                         port,
                         service_api_key,
                         model,
-                        env_config,
                         effort,
                         "reasoning",
                         effort,
@@ -408,7 +412,7 @@ def run_tests(models: list[str]) -> dict[str, ModelCapabilities]:
             current_test += 1
             env_config = {
                 **BASE_CONFIG,
-                "AZURE_DEPLOYMENT": model,
+                "AZURE_MODEL_DEPLOYMENTS": json.dumps({model: model}),
                 "AZURE_VERBOSITY_LEVEL": verbosity,
             }
 
@@ -433,7 +437,6 @@ def run_tests(models: list[str]) -> dict[str, ModelCapabilities]:
                         port,
                         service_api_key,
                         model,
-                        env_config,
                         BASE_REASONING_EFFORT,
                         "verbosity",
                         verbosity,
@@ -459,7 +462,7 @@ def run_tests(models: list[str]) -> dict[str, ModelCapabilities]:
             current_test += 1
             env_config = {
                 **BASE_CONFIG,
-                "AZURE_DEPLOYMENT": model,
+                "AZURE_MODEL_DEPLOYMENTS": json.dumps({model: model}),
                 "AZURE_TRUNCATION": truncation,
             }
 
@@ -484,7 +487,6 @@ def run_tests(models: list[str]) -> dict[str, ModelCapabilities]:
                         port,
                         service_api_key,
                         model,
-                        env_config,
                         BASE_REASONING_EFFORT,
                         "truncation",
                         truncation,
@@ -510,7 +512,7 @@ def run_tests(models: list[str]) -> dict[str, ModelCapabilities]:
             current_test += 1
             env_config = {
                 **BASE_CONFIG,
-                "AZURE_DEPLOYMENT": model,
+                "AZURE_MODEL_DEPLOYMENTS": json.dumps({model: model}),
                 "AZURE_SUMMARY_LEVEL": summary,
             }
 
@@ -535,7 +537,6 @@ def run_tests(models: list[str]) -> dict[str, ModelCapabilities]:
                         port,
                         service_api_key,
                         model,
-                        env_config,
                         BASE_REASONING_EFFORT,
                         "summary",
                         summary,
@@ -634,10 +635,10 @@ def print_detailed_table(results: dict[str, ModelCapabilities]) -> None:
 
 def generate_markdown_table(results: dict[str, ModelCapabilities]) -> str:
     """Generate a transposed markdown table with models as columns."""
-    # Get model names without gpt- prefix and -global suffix for column headers
+    # Get model names without the gpt- prefix for column headers.
     model_names = []
     for model in results.keys():
-        short_name = model.replace("gpt-", "").replace("-global", "")
+        short_name = model.replace("gpt-", "")
         model_names.append(short_name)
 
     # Build header row
