@@ -187,10 +187,45 @@ Cursor still sees `gpt-5.4`, `gpt-5.4-mini`, and `gpt-5.3-codex`. Only Azure see
 
 - Native forwarding of Cursor `reasoning.effort`
 - Configurable Azure deployment mapping per model id
+- Prompt caching that works well in practice for long Cursor conversations
 - Rich request/context logging in the terminal
 - Replay-style test fixtures under `tests/recordings/`
 - Azure error responses cleaned up for easier debugging
 - Token-usage reporting from Docker logs
+
+## Prompt caching
+
+Prompt caching works really well with this proxy when Cursor stays within the
+same conversation.
+
+That matters a lot for real agent usage, where prompts can become very large
+after many tool calls and long context chains. Without stable cache routing,
+Azure can keep sending related requests to different backend machines, which
+means each machine sees a cold cache and you lose most of the benefit.
+
+This proxy intentionally follows the same basic caching strategy used by Codex
+CLI-style clients:
+
+- it derives a per-conversation id from Cursor's `metadata.cursorConversationId`
+- it sends that id as `session_id` and `x-client-request-id` headers
+- it uses that same id as `prompt_cache_key`
+- it sets `store=true` so Azure can reuse prior conversation state for caching
+- it keeps tool-call behavior aligned with the same flow by sending `parallel_tool_calls=true`
+
+The important detail is that cache routing is tied to the conversation id, not
+to Cursor's `user` field. The `user` field is stable across conversations, so
+using it for cache affinity can cause collisions and weaker cache behavior when
+multiple sessions are active.
+
+The proxy also surfaces cache information back to you:
+
+- Azure usage chunks forwarded to Cursor include cached token counts
+- terminal logs print `USAGE:` lines with cached-token totals and cache-hit percentage
+- `scripts/analyze_token_usage.py` can summarize those logs over time
+
+So the fork is not just "cache-compatible" on paper. It is set up to preserve
+cache affinity across turns and to make cache performance visible when you want
+to measure whether it is paying off.
 
 ## Token usage analysis
 
