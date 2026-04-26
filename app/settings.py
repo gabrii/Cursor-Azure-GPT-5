@@ -8,6 +8,8 @@ environment variables.
 
 from environs import Env
 
+from .models import parse_model_deployments
+
 env = Env()
 env.read_env()
 
@@ -21,12 +23,13 @@ SERVICE_API_KEY = env.str("SERVICE_API_KEY", "change-me")
 
 AZURE_BASE_URL = env.str("AZURE_BASE_URL", "change_me").rstrip("/")
 AZURE_API_KEY = env.str("AZURE_API_KEY", "change_me")
-AZURE_DEPLOYMENT = env.str("AZURE_DEPLOYMENT") or "gpt-5"
 
 AZURE_API_VERSION = env.str("AZURE_API_VERSION") or "2025-04-01-preview"
 AZURE_SUMMARY_LEVEL = env.str("AZURE_SUMMARY_LEVEL") or "detailed"
 AZURE_VERBOSITY_LEVEL = env.str("AZURE_VERBOSITY_LEVEL") or "medium"
 AZURE_TRUNCATION = env.str("AZURE_TRUNCATION") or "disabled"
+raw_model_deployments = env.str("AZURE_MODEL_DEPLOYMENTS", default="")
+AZURE_MODEL_DEPLOYMENTS = parse_model_deployments(raw_model_deployments)
 
 AZURE_RESPONSES_API_URL = (
     f"{AZURE_BASE_URL}/openai/responses?api-version={AZURE_API_VERSION}"

@@ -4,280 +4,325 @@
 [![Flask](https://img.shields.io/badge/Flask-009485?logo=flask&logoColor=fff)](#)
 [![Pytest](https://img.shields.io/badge/Pytest-fff?logo=pytest&logoColor=000)](#)
 [![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=fff)](#)
-![GitHub License](https://img.shields.io/github/license/gabrii/Cursor-Azure-GPT-5)
-![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/gabrii/Cursor-Azure-GPT-5/lint.yml?label=test)
-![Codecov](https://img.shields.io/codecov/c/github/gabrii/Cursor-Azure-GPT-5)
 
-A service that allows Cursor to use Azure GPT-5 deployments by:
- - Adapting incoming Cursor **completions API** requests to the **Responses API**
- - Forwarding the requests to Azure
- - Adapting outgoing Azure **Responses API** streams into **completions API** streams
+This project is a proxy that lets Cursor use Azure OpenAI GPT-5 deployments even when Cursor itself expects an OpenAI-style `/chat/completions` endpoint.
 
-This project originates from Cursor's lack of support for Azure models that are only served through the **Responses API**. It will hopefully become obsolete as Cursor continues to improve its model support.
+In practice, the proxy sits between Cursor and Azure and does three jobs:
+
+- it accepts Cursor-compatible chat completion requests
+- it converts them into Azure Responses API requests
+- it converts Azure's streamed responses back into the completion chunks Cursor expects
+
+That means you can keep using Cursor as usual, while hosting the actual models in Azure.
 
 > [!WARNING]
-> You still need an active paid Cursor subscription to be able to use this project.
+> You still need an active paid Cursor subscription to use this project.
 
-> [!IMPORTANT]
-> **Azure** now supports the **Completions API** for the models `gpt-5`, `gpt-5-mini`, and `gpt-5-nano`.
-> 
-> They can now be used directly in Cursor, but without the ability to change the _Reasoning Effort_ / _Verbosity_ / _Summary Level_. To do so, you can still use this project.
->
-> The models `gpt-5-pro` and `gpt-5-codex` remain available only through the **Responses API**, but work great with this project (see list of specific model limitations in the next section).
+## Why this fork exists
 
+This fork keeps the original idea, but tightens it around what actually works well for an Azure-based Cursor setup today.
 
-## Supported Models
+The main changes in this fork are:
 
-The entire gpt-5 series is supported, although some models have some limitations on the reasoning effort / verbosity / truncation / summary values they accept: 
+- only real bare Cursor model ids are accepted, such as `gpt-5.4`, `gpt-5.4-mini`, and `gpt-5.3-codex`
+- old alias models like `gpt-high`, `gpt-medium`, `gpt-low`, and `gpt-minimal` are removed instead of being kept as compatibility baggage
+- Cursor's own native `reasoning.effort` payload is forwarded directly, so thinking level comes from Cursor's UI rather than model-name tricks
+- Azure deployment names can be configured independently from the public model ids Cursor sees
+- replay tests and request fixtures are aligned to the cleaned model contract
+- token-usage analysis tooling is included for inspecting real proxy usage from logs
 
-| Variable   | Value      | 5.2 | 5.2-chat | 5.1 | 5.1-codex | 5.1-codex-mini | 5.1-codex-max | 5   | 5-nano | 5-mini | 5-pro | 5-codex |
-| ---------- | ---------- | --- | -------- | --- | --------- | -------------- | ------------- | --- | ------ | ------ | ----- | ------- |
-| Reasoning  | `minimal`  | ❌   | ❌        | ❌   | ❌         | ❌              | ❌             | ✅   | ✅      | ✅      | ❌     | ❌       |
-|            | `low`      | ✅   | ❌        | ✅   | ✅         | ✅              | ✅             | ✅   | ✅      | ✅      | ❌     | ✅       |
-|            | `medium`   | ✅   | ✅        | ✅   | ✅         | ✅              | ✅             | ✅   | ✅      | ✅      | ❌     | ✅       |
-|            | `high`     | ✅   | ❌        | ✅   | ✅         | ✅              | ✅             | ✅   | ✅      | ✅      | ✅     | ✅       |
-| Verbosity  | `low`      | ✅   | ❌        | ✅   | ❌         | ❌              | ❌             | ✅   | ✅      | ✅      | ❌     | ❌       |
-|            | `medium`   | ✅   | ✅        | ✅   | ✅         | ✅              | ✅             | ✅   | ✅      | ✅      | ❌     | ✅       |
-|            | `high`     | ✅   | ❌        | ✅   | ❌         | ❌              | ❌             | ✅   | ✅      | ✅      | ❌     | ❌       |
-| Truncation | `auto`     | ✅   | ✅        | ✅   | ✅         | ✅              | ✅             | ✅   | ✅      | ✅      | ❌     | ✅       |
-|            | `disabled` | ✅   | ✅        | ✅   | ✅         | ✅              | ✅             | ✅   | ✅      | ✅      | ❌     | ✅       |
-| Summary    | `auto`     | ✅   | ✅        | ✅   | ✅         | ✅              | ✅             | ✅   | ✅      | ✅      | ❌     | ✅       |
-|            | `detailed` | ✅   | ✅        | ✅   | ✅         | ✅              | ✅             | ✅   | ✅      | ✅      | ❌     | ✅       |
-|            | `concise`  | ✅   | ✅        | ✅   | ❌         | ❌              | ❌             | ✅   | ✅      | ✅      | ❌     | ❌       |
+If your goal is "make Cursor talk to Azure GPT-5 cleanly, with less legacy weirdness," this fork is aimed at that.
 
-_(This matrix is automatically generated, and updated after every new model release.)_
+## Supported model ids
 
-## Feature highlights
+The proxy accepts these Cursor-facing model ids:
 
-- Switching between `high`/`medium`/`low`/`minimal` reasoning effort levels by selecting different models in Cursor.
-- Configuring different _reasoning summary_ levels (`auto`, `detailed`, `concise`).
-- Displaying _reasoning summaries_ in Cursor natively, like any other reasoning model.
-- Production-ready, so you can share the service among different users in an organization.
-- When running from a terminal, [rich](https://github.com/Textualize/rich) logging of the model's context on every request, including Markdown rendering, syntax highlighting, tool calls/outputs, and more.
+- `gpt-5`
+- `gpt-5-mini`
+- `gpt-5-codex`
+- `gpt-5.1`
+- `gpt-5.1-codex`
+- `gpt-5.1-codex-max`
+- `gpt-5.1-codex-mini`
+- `gpt-5.2`
+- `gpt-5.2-codex`
+- `gpt-5.3-codex`
+- `gpt-5.4`
+- `gpt-5.4-mini`
+- `gpt-5.4-nano`
 
-Feel free to create or vote on any [project issues](https://github.com/gabrii/Cursor-Azure-GPT-5/issues), and star the project to show your support.
+Legacy alias names such as `gpt-high`, `gpt-medium`, `gpt-low`, and `gpt-minimal` are intentionally **not** supported.
+
+## How model selection works
+
+There are two names involved in every request:
+
+1. The public model id that Cursor sends to the proxy, for example `gpt-5.4`
+2. The Azure deployment name that your Azure resource actually exposes, for example `my-company-gpt54-prod`
+
+By default, this proxy assumes those names are the same.
+
+If your Azure deployment names are different, set `AZURE_MODEL_DEPLOYMENTS` to a JSON object that maps Cursor-facing ids to Azure deployment names.
+
+Example:
+
+```json
+{
+  "gpt-5.4": "my-company-gpt54-prod",
+  "gpt-5.4-mini": "my-team-mini",
+  "gpt-5.3-codex": "codex-eastus"
+}
+```
+
+This is one of the most important differences from the older setup: you no longer need to rename models or invent alias ids just to target a deployment.
 
 ## Quick start
 
-If you prefer to deploy the service (for example, to allow multiple members of your team to use it), check the [Production](#production) section, as the project comes with production-ready containers using `supervisord` and `gunicorn`.
+If you only want a working setup quickly, this is the shortest path.
 
-### 1. Service configuration
+### 1. Create your config
 
-Make a copy of the file `.env.example` as `.env` and update the following flags as needed:
+Copy `.env.example` to `.env`.
 
-| Flag                    | Description                                                                                                                    | Default     |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ----------- |
-| `SERVICE_API_KEY`       | Arbitrary API key to protect your service. Set it to a random string.                                                          | `change-me` |
-| `AZURE_BASE_URL`        | Your Azure OpenAI endpoint base URL (no trailing slash), e.g. `https://<resource>.openai.azure.com`.                           | required    |
-| `AZURE_API_KEY`         | Azure OpenAI API key.                                                                                                          | required    |
-| `AZURE_DEPLOYMENT`      | Name of the Azure model deployment to use.                                                                                     | `gpt-5`     |
-| `AZURE_VERBOSITY_LEVEL` | Hint the model to be more or less expansive in its replies. Use either `high` / `medium` / `low`                               | `medium`    |
-| `AZURE_SUMMARY_LEVEL`   | Set to `none` to disable summaries. You might have to disable them if your organization hasn't been approved for this feature. | `detailed`  |
-| `AZURE_TRUNCATION`      | Truncation strategy for long inputs. Either `auto` or `disabled`                                                               | `disabled`  |
+Required values:
 
-Alternatively, you can pass them through the environment where you run the application.
+| Flag | Description | Default |
+| --- | --- | --- |
+| `SERVICE_API_KEY` | The secret Cursor will use as its OpenAI API key when calling this proxy. | `change-me` |
+| `AZURE_BASE_URL` | Your Azure OpenAI base URL, without a trailing slash. | required |
+| `AZURE_API_KEY` | Your Azure OpenAI API key. | required |
 
-<details>
-<summary>Optional Configuration</summary>
+Optional but often useful:
 
-| Flag                | Description                                                            | Default              |
-| ------------------- | ---------------------------------------------------------------------- | -------------------- |
-| `AZURE_API_VERSION` | Azure OpenAI Responses API version to call.                            | `2025-04-01-preview` |
-| `FLASK_ENV`         | Flask environment. Use `development` for dev or `production` for prod. | `production`         |
-| `RECORD_TRAFFIC`    | Toggle writing request/response traffic to `recordings/`               | `off`                |
-| `LOG_CONTEXT`       | Enable rich pretty-printing of request context to console.             | `on`                 |
-| `LOG_COMPLETION`    | Enable logging of completion responses (not yet implemented).          | `on`                 |
+| Flag | Description | Default |
+| --- | --- | --- |
+| `AZURE_MODEL_DEPLOYMENTS` | JSON mapping from public model ids to Azure deployment names. Leave empty if names already match. | empty |
+| `AZURE_API_VERSION` | Azure Responses API version to call. | `2025-04-01-preview` |
+| `AZURE_SUMMARY_LEVEL` | Default reasoning summary hint sent upstream. | `detailed` |
+| `AZURE_VERBOSITY_LEVEL` | Default verbosity hint sent upstream. | `medium` |
+| `AZURE_TRUNCATION` | Default truncation mode sent upstream. | `disabled` |
+| `RECORD_TRAFFIC` | Write redacted request/response fixtures to disk. | `off` |
+| `LOG_CONTEXT` | Pretty-print request context in the terminal. | `on` |
+| `LOG_COMPLETION` | Log completion payloads. | `on` |
 
-</details>
+### 2. Start the proxy
 
-### 2. Exposing the service
+You have three common ways to run it.
 
-<details>
-<summary>Why do I have to?</summary>
-
-> Since Cursor routes requests through its external prompt-building service rather than directly from the IDE to your API, your custom endpoint must be publicly reachable on the Internet.
->
-> Consider using Cloudflare because its tunnels are free and require no account.
-</details>
-
-[Install `cloudflared`](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/) and run:
+#### Option A: simple local helper
 
 ```bash
-cloudflared tunnel --url http://localhost:8080
+./start.sh 8082
 ```
 
-Copy the URL of your tunnel from the output of the command. It looks something like this:
+This is the easiest local entrypoint. It creates `.venv` if needed, prints the important Cursor values, and runs the Flask app on the port you choose.
 
-```text
-+----------------------------------------------------+
-|  Your quick Tunnel has been created! Visit it at:  |
-|  https://foo-bar.trycloudflare.com                 |
-+----------------------------------------------------+
-```
-
-Then paste it into _Cursor Settings > Models > API Keys > OpenAI API Key > Override OpenAI Base URL_:
-
-![How to use Azure API key in Cursor for GPT-5](assets/cursor_model_config.jpg)
-
-### 3. Configuring Cursor
-
-In addition to updating the OpenAI Base URL, you need to:
-
-1. Set _OpenAI API Key_ to the value of `SERVICE_API_KEY` in your `.env`
-
-2. Ensure the toggles for both options are **on**, as shown in the previous image.
-
-3. Add the custom models called exactly `gpt-high`, `gpt-medium`, and `gpt-low`, as shown in the previous image. You can also create `gpt-minimal` for minimal reasoning effort for models that support it. You don't need to remove other models.
-
-### 4. Running the service
-
-To run the production version of the app:
+#### Option B: Docker production-style run
 
 ```bash
-docker compose up flask-prod
+docker compose up flask
 ```
 
-> For instructions on how to run locally without Docker, and the different development commands, see the [Development](#development) section.
+This runs the production image with `supervisord` and `gunicorn`.
+
+#### Option C: Docker dev workflow
+
+```bash
+docker compose --profile dev up flask-dev
+```
+
+This runs the development image with the repo mounted in, which is more convenient while editing code.
+
+### 3. Expose it to Cursor
+
+Cursor needs a publicly reachable base URL. A quick option is `cloudflared`:
+
+```bash
+cloudflared tunnel --url http://localhost:8082
+```
+
+This gives you a public HTTPS URL that forwards to your local proxy.
+
+### 4. Configure Cursor
+
+In Cursor, set:
+
+1. `Override OpenAI Base URL` -> your public proxy URL
+2. `OpenAI API Key` -> the `SERVICE_API_KEY` from `.env`
+3. Add whichever supported model ids you want Cursor to use, such as `gpt-5.4`, `gpt-5.4-mini`, or `gpt-5.3-codex`
+
+Important behavior change versus older setups:
+
+- do **not** create one model per reasoning level
+- do **not** use `gpt-high` / `gpt-low` style aliases
+- do use Cursor's built-in thinking controls, because the proxy forwards `reasoning.effort` natively
+
+## User-friendly setup examples
+
+### Example 1: deployment names already match
+
+If your Azure deployments are literally named `gpt-5.4` and `gpt-5.4-mini`, your `.env` can stay simple:
+
+```env
+SERVICE_API_KEY=replace-me
+AZURE_BASE_URL=https://your-resource.openai.azure.com
+AZURE_API_KEY=replace-me
+AZURE_MODEL_DEPLOYMENTS=
+```
+
+### Example 2: deployment names are custom
+
+If Azure uses different deployment names, map them explicitly:
+
+```env
+SERVICE_API_KEY=replace-me
+AZURE_BASE_URL=https://your-resource.openai.azure.com
+AZURE_API_KEY=replace-me
+AZURE_MODEL_DEPLOYMENTS={"gpt-5.4":"prod-gpt54","gpt-5.4-mini":"mini-westus","gpt-5.3-codex":"codex-prod"}
+```
+
+Cursor still sees `gpt-5.4`, `gpt-5.4-mini`, and `gpt-5.3-codex`. Only Azure sees the custom deployment names.
+
+## Feature highlights
+
+- Native forwarding of Cursor `reasoning.effort`
+- Configurable Azure deployment mapping per model id
+- Prompt caching that works well in practice for long Cursor conversations
+- Rich request/context logging in the terminal
+- Replay-style test fixtures under `tests/recordings/`
+- Azure error responses cleaned up for easier debugging
+- Token-usage reporting from Docker logs
+
+## Prompt caching
+
+Prompt caching works really well with this proxy when Cursor stays within the
+same conversation.
+
+That matters a lot for real agent usage, where prompts can become very large
+after many tool calls and long context chains. Without stable cache routing,
+Azure can keep sending related requests to different backend machines, which
+means each machine sees a cold cache and you lose most of the benefit.
+
+This proxy intentionally follows the same basic caching strategy used by Codex
+CLI-style clients:
+
+- it derives a per-conversation id from Cursor's `metadata.cursorConversationId`
+- it sends that id as `session_id` and `x-client-request-id` headers
+- it uses that same id as `prompt_cache_key`
+- it sets `store=true` so Azure can reuse prior conversation state for caching
+- it keeps tool-call behavior aligned with the same flow by sending `parallel_tool_calls=true`
+
+The important detail is that cache routing is tied to the conversation id, not
+to Cursor's `user` field. The `user` field is stable across conversations, so
+using it for cache affinity can cause collisions and weaker cache behavior when
+multiple sessions are active.
+
+The proxy also surfaces cache information back to you:
+
+- Azure usage chunks forwarded to Cursor include cached token counts
+- terminal logs print `USAGE:` lines with cached-token totals and cache-hit percentage
+- `scripts/analyze_token_usage.py` can summarize those logs over time
+
+So the fork is not just "cache-compatible" on paper. It is set up to preserve
+cache affinity across turns and to make cache performance visible when you want
+to measure whether it is paying off.
+
+## Token usage analysis
+
+This fork includes a small utility for summarizing real token usage from proxy logs.
+
+Code lives in:
+
+- `app/common/token_usage_report.py`
+- `scripts/analyze_token_usage.py`
+
+Example:
+
+```bash
+python scripts/analyze_token_usage.py --hours 48
+```
+
+That reads Docker Compose logs from the `flask` service, parses `USAGE:` lines, and prints:
+
+- request counts
+- input, cached, output, and reasoning token totals
+- cache hit rate
+- estimated spend using configurable per-million token prices
+- largest requests by input size
+
+This is useful if you want real numbers for cache efficiency, context size, or spend trends without wiring up a full external monitoring stack first.
 
 ## Development
 
-### Running locally
-
-<details><summary>Expand</summary>
-
-#### Bootstrap your local environment
+### Local Python workflow
 
 ```bash
-python -m venv .venv
+python3 -m venv .venv
+source .venv/bin/activate
 pip install -r requirements/dev.txt
-```
-
-#### Running the development server
-
-```bash
 flask run -p 8080
 ```
 
-#### Running the production server*
+### Tests
 
-```bash
-export FLASK_ENV=production
-export FLASK_DEBUG=0
-export LOG_LEVEL=info
-flask run -p 8080
-```
-
-This will only run the Flask server with the production settings. For a closer approximation of the production server running with `supervisord` and `gunicorn`, check [Running with Docker](#running-with-docker).
-
-#### Running tests
+Run everything:
 
 ```bash
 flask test
 ```
 
-To run only specific tests, you can use the pytest `-k` argument:
+Run a subset:
 
 ```bash
-flask test -k ...
+flask test -k request_adapter
 ```
 
-#### Running linter
+### Lint
 
 ```bash
 flask lint
 ```
 
-The `lint` command will attempt to fix any linting/style errors in the code. If you only want to know if the code will pass CI and do not wish for the linter to make changes, add the `--check` argument.
+Check-only mode:
 
 ```bash
 flask lint --check
 ```
 
-</details>
+### Docker helper commands
 
-### Running with Docker
-
-<details><summary>Expand</summary>
-
-#### Running the development server
+Run tests:
 
 ```bash
-docker compose up flask-dev
+docker compose --profile dev run --rm manage test
 ```
 
-#### Running the production server
+Run lint:
 
 ```bash
-docker compose up flask-prod
+docker compose --profile dev run --rm manage lint
 ```
 
-This image runs the server through `supervisord` and `gunicorn`. See the [Production](#production) section for more details.
+## Testing fixtures
 
-When running flask-prod, the production flags are set in `docker-compose.yml`:
+When `RECORD_TRAFFIC=on`, the proxy writes redacted request and response fixtures under `recordings/`.
 
-```yml
-    FLASK_ENV: production
-    FLASK_DEBUG: 0
-    LOG_LEVEL: info
-    GUNICORN_WORKERS: 4
-```
+Sensitive Cursor scaffolding is stripped out so those fixtures can be committed under `tests/recordings/` and reused as replay tests without exposing private prompt-building details.
 
-The list of `environment:` variables in the `docker-compose.yml` file takes precedence over any variables specified in `.env`.
+## Production notes
 
-#### Running tests
+The `flask` service in `docker-compose.yml` runs the production image through `supervisord` and `gunicorn`.
+
+Relevant files:
+
+- `supervisord/gunicorn.conf`
+- `supervisord/supervisord_entrypoint.sh`
+- `supervisord/supervisord.conf`
+
+To build and publish the production image:
 
 ```bash
-docker compose run --rm manage test
-```
-
-To run only specific tests, you can use the pytest `-k` argument:
-
-```bash
-docker compose run --rm manage test -k ...
-```
-
-#### Running linter
-
-```bash
-docker compose run --rm manage lint
-```
-
-The `lint` command will attempt to fix any linting/style errors in the code. If you only want to know if the code will pass CI and do not wish for the linter to make changes, add the `--check` argument.
-
-```bash
-docker compose run --rm manage lint --check
-```
-
-</details>
-
-## Testing
-
-To make the generation of test fixtures easier, the `RECORD_TRAFFIC` flag has been added, which creates files with all the incoming/outgoing traffic between this service and Cursor/Azure in the directory `recordings/`
-
-To avoid violating Cursor's intellectual property, a redaction layer removes any sensitive data, such as: system prompts, tool names, tool descriptions, and any context containing scaffolding from Cursor's prompt-building service.
-
-Therefore, recorded traffic can be published under `tests/recordings/` to be used as test fixtures while remaining MIT-licensed.
-
-## Production
-
-<details><summary>Expand</summary>
-
-### Configure server
-
-You might want to review and modify the following configuration files:
-
-| File                                    | Description                                                                                                     |
-| --------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| `supervisord/gunicorn.conf`             | Supervisor program config for Gunicorn (bind :5000, gevent; workers/log level from env; logs to stdout/stderr). |
-| `supervisord/supervisord_entrypoint.sh` | Container entrypoint that execs supervisord (prepends it when args start with -).                               |
-| `supervisord/supervisord.conf`          | Main Supervisord config: socket, logging, nodaemon; includes conf.d program configs.                            |
-
-### Build, tag, and push the image
-
-```bash
-docker compose build flask-prod
-docker tag app-production your-tag
+docker compose build flask
+docker tag cursor-azure-gpt5 your-tag
 docker push your-tag
 ```
-
-</details>

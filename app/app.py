@@ -14,6 +14,11 @@ def create_app(config_object="app.settings"):
     """
     app = Flask(__name__.split(".")[0])
     app.config.from_object(config_object)
+    if "AZURE_MODEL_DEPLOYMENTS" in app.config:
+        app.config["AZURE_MODEL_DEPLOYMENTS"] = dict(
+            app.config["AZURE_MODEL_DEPLOYMENTS"]
+        )
+
     configure_logging(app)
     register_commands(app)
     register_blueprints(app)

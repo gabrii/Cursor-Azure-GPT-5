@@ -640,13 +640,13 @@
     }
   ],
   "tool_choice": "auto",
-  "prompt_cache_key": "REDACTED",
   "stream": true,
   "reasoning": {
     "effort": "high",
     "summary": "detailed"
   },
-  "store": false,
+  "store": true,
+  "parallel_tool_calls": true,
   "stream_options": {
     "include_obfuscation": false
   }

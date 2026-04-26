@@ -4,6 +4,7 @@ See: http://webtest.readthedocs.org/
 """
 
 import importlib
+import json
 import sys
 
 import environs
@@ -33,3 +34,27 @@ class TestConfig:
         settings = importlib.import_module("app.settings")
 
         assert settings.AZURE_BASE_URL == "https://change-me.openai.azure.com"
+        assert settings.AZURE_MODEL_DEPLOYMENTS["gpt-5"] == "gpt-5"
+
+    def test_env_example_exposes_model_deployments_mapping(self, monkeypatch):
+        """Load explicit per-model deployment overrides from the environment."""
+        monkeypatch.setenv(
+            "AZURE_MODEL_DEPLOYMENTS",
+            json.dumps({"gpt-5.4": "prod-gpt54", "gpt-5.4-mini": "team-mini"}),
+        )
+
+        sys.modules.pop("app.settings", None)
+        settings = importlib.import_module("app.settings")
+
+        assert settings.AZURE_MODEL_DEPLOYMENTS["gpt-5.4"] == "prod-gpt54"
+        assert settings.AZURE_MODEL_DEPLOYMENTS["gpt-5.4-mini"] == "team-mini"
+        assert settings.AZURE_MODEL_DEPLOYMENTS["gpt-5"] == "gpt-5"
+
+    def test_legacy_single_deployment_env_is_ignored(self, monkeypatch):
+        """Do not silently backfill the old single-deployment env var."""
+        monkeypatch.setenv("AZURE_DEPLOYMENT", "legacy-custom-deployment")
+
+        sys.modules.pop("app.settings", None)
+        settings = importlib.import_module("app.settings")
+
+        assert settings.AZURE_MODEL_DEPLOYMENTS["gpt-5"] == "gpt-5"

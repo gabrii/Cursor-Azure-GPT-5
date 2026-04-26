@@ -70,8 +70,8 @@ def increment_last_recording() -> None:
     __LAST_RECORDING_INDEX += 1
 
 
-def anonimize(data: str) -> str:
-    """Removes sensitive data from recordings."""
+def anonymize(data: str) -> str:
+    """Remove sensitive data from recordings."""
     closing = r'(.*?[^\\](?:\\\\)?)(")'
     patterns = (
         # Content
@@ -105,7 +105,7 @@ def record_payload(payload: Dict[str, Any], name: str) -> None:
     file_path = _recording_file_path(name, "json")
     with open(file_path, "w") as f:
         data = json.dumps(payload, indent=2)
-        data = anonimize(data)
+        data = anonymize(data)
         f.write(data)
 
 
@@ -115,5 +115,5 @@ def record_sse(sse: bytes, name: str) -> None:
 
     file_path = _recording_file_path(name, "sse")
     with open(file_path, "wb") as f:
-        sse = anonimize(sse.decode("utf-8")).encode("utf-8")
+        sse = anonymize(sse.decode("utf-8")).encode("utf-8")
         f.write(sse)

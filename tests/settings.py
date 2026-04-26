@@ -1,5 +1,7 @@
 """Settings module for test app."""
 
+from app.models import SUPPORTED_MODELS
+
 ENV = "development"
 TESTING = True
 
@@ -8,7 +10,7 @@ SERVICE_API_KEY = "test-service-api-key"
 AZURE_API_VERSION = "2025-04-01-preview"
 AZURE_BASE_URL = "https://test-resource.openai.azure.com"
 AZURE_API_KEY = "test-api-key"
-AZURE_DEPLOYMENT = "gpt-5"
+AZURE_MODEL_DEPLOYMENTS = {model: model for model in SUPPORTED_MODELS}
 AZURE_SUMMARY_LEVEL = "detailed"
 AZURE_VERBOSITY_LEVEL = "medium"
 AZURE_TRUNCATION = "disabled"
