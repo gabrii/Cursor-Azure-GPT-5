@@ -35,6 +35,7 @@ class TestConfig:
 
         assert settings.AZURE_BASE_URL == "https://change-me.openai.azure.com"
         assert settings.AZURE_MODEL_DEPLOYMENTS["gpt-5"] == "gpt-5"
+        assert settings.AZURE_MODEL_DEPLOYMENTS["gpt-5.5"] == "gpt-5.5"
 
     def test_optional_azure_settings_use_defaults_when_missing(self, monkeypatch):
         """Import settings without optional Azure env vars."""
@@ -59,7 +60,13 @@ class TestConfig:
         """Load explicit per-model deployment overrides from the environment."""
         monkeypatch.setenv(
             "AZURE_MODEL_DEPLOYMENTS",
-            json.dumps({"gpt-5.4": "prod-gpt54", "gpt-5.4-mini": "team-mini"}),
+            json.dumps(
+                {
+                    "gpt-5.4": "prod-gpt54",
+                    "gpt-5.4-mini": "team-mini",
+                    "gpt-5.5": "gpt-5.5-1",
+                }
+            ),
         )
 
         sys.modules.pop("app.settings", None)
@@ -67,6 +74,7 @@ class TestConfig:
 
         assert settings.AZURE_MODEL_DEPLOYMENTS["gpt-5.4"] == "prod-gpt54"
         assert settings.AZURE_MODEL_DEPLOYMENTS["gpt-5.4-mini"] == "team-mini"
+        assert settings.AZURE_MODEL_DEPLOYMENTS["gpt-5.5"] == "gpt-5.5-1"
         assert settings.AZURE_MODEL_DEPLOYMENTS["gpt-5"] == "gpt-5"
 
     def test_legacy_single_deployment_env_is_ignored(self, monkeypatch):

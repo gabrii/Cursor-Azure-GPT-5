@@ -82,6 +82,31 @@ def test_request_adapter_uses_configured_deployment_mapping(app):
     assert adapter.adapter.inbound_model == "gpt-5.4"
 
 
+def test_request_adapter_routes_gpt_55_to_configured_deployment(app):
+    """Route gpt-5.5 through the configured Azure deployment name."""
+    app.config["AZURE_MODEL_DEPLOYMENTS"]["gpt-5.5"] = "gpt-5.5-1"
+    adapter = AzureAdapter().request_adapter
+    request = app.test_request_context(
+        "/chat/completions",
+        method="POST",
+        json={
+            "model": "gpt-5.5",
+            "input": [
+                {"role": "user", "content": [{"type": "input_text", "text": "Hi"}]}
+            ],
+            "reasoning": {"effort": "high", "summary": "auto"},
+            "stream": True,
+            "user": "cursor-user",
+        },
+        headers={"Authorization": "Bearer test-service-api-key"},
+    ).request
+
+    request_kwargs = adapter.adapt(request)
+
+    assert request_kwargs["json"]["model"] == "gpt-5.5-1"
+    assert adapter.adapter.inbound_model == "gpt-5.5"
+
+
 def test_request_adapter_requires_reasoning_for_bare_model(app):
     """Reject bare model names when Cursor omits native reasoning settings."""
     adapter = AzureAdapter().request_adapter

@@ -24,6 +24,7 @@ class TestModels:
         returned_models = [item["id"] for item in payload["data"]]
 
         assert returned_models == list(SUPPORTED_MODELS)
+        assert "gpt-5.5" in returned_models
         assert "gpt-high" not in returned_models
         assert "gpt-medium" not in returned_models
         assert "gpt-low" not in returned_models

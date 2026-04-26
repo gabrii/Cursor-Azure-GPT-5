@@ -84,7 +84,7 @@ If your Azure deployment names match the Cursor model ids, leave
 `AZURE_MODEL_DEPLOYMENTS` empty. If not, map only the models you use:
 
 ```env
-AZURE_MODEL_DEPLOYMENTS={"gpt-5.4":"prod-gpt54","gpt-5.4-mini":"team-mini"}
+AZURE_MODEL_DEPLOYMENTS={"gpt-5.4":"prod-gpt54","gpt-5.4-mini":"team-mini","gpt-5.5":"gpt-5.5-1"}
 ```
 
 Cursor still sees `gpt-5.4` and `gpt-5.4-mini`; Azure receives your deployment
@@ -104,6 +104,7 @@ The proxy accepts these Cursor-facing model ids:
 - `gpt-5.2`
 - `gpt-5.2-codex`
 - `gpt-5.3-codex`
+- `gpt-5.5`
 - `gpt-5.4`
 - `gpt-5.4-mini`
 - `gpt-5.4-nano`
