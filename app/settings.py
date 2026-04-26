@@ -24,10 +24,10 @@ SERVICE_API_KEY = env.str("SERVICE_API_KEY", "change-me")
 AZURE_BASE_URL = env.str("AZURE_BASE_URL", "change_me").rstrip("/")
 AZURE_API_KEY = env.str("AZURE_API_KEY", "change_me")
 
-AZURE_API_VERSION = env.str("AZURE_API_VERSION") or "2025-04-01-preview"
-AZURE_SUMMARY_LEVEL = env.str("AZURE_SUMMARY_LEVEL") or "detailed"
-AZURE_VERBOSITY_LEVEL = env.str("AZURE_VERBOSITY_LEVEL") or "medium"
-AZURE_TRUNCATION = env.str("AZURE_TRUNCATION") or "disabled"
+AZURE_API_VERSION = env.str("AZURE_API_VERSION", default="") or "2025-04-01-preview"
+AZURE_SUMMARY_LEVEL = env.str("AZURE_SUMMARY_LEVEL", default="") or "detailed"
+AZURE_VERBOSITY_LEVEL = env.str("AZURE_VERBOSITY_LEVEL", default="") or "medium"
+AZURE_TRUNCATION = env.str("AZURE_TRUNCATION", default="") or "disabled"
 raw_model_deployments = env.str("AZURE_MODEL_DEPLOYMENTS", default="")
 AZURE_MODEL_DEPLOYMENTS = parse_model_deployments(raw_model_deployments)
 
