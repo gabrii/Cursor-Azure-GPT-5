@@ -179,6 +179,23 @@ class RequestAdapter:
             )
         return out
 
+    def _transform_tool_choice_for_responses(self, tool_choice: Any) -> Any:
+        """Convert Chat Completions forced function choice to Responses shape."""
+        if not isinstance(tool_choice, dict):
+            return tool_choice
+
+        if tool_choice.get("type") != "function":
+            return tool_choice
+
+        function = tool_choice.get("function")
+        if not isinstance(function, dict) or not function.get("name"):
+            return tool_choice
+
+        return {
+            "type": "function",
+            "name": function["name"],
+        }
+
     def _resolve_model_and_reasoning(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         """Resolve the Azure deployment and reasoning settings for this request."""
         settings = current_app.config
@@ -300,7 +317,9 @@ class RequestAdapter:
         responses_body["tools"] = self._transform_tools_for_responses(
             payload.get("tools", [])
         )
-        responses_body["tool_choice"] = payload.get("tool_choice")
+        responses_body["tool_choice"] = self._transform_tool_choice_for_responses(
+            payload.get("tool_choice")
+        )
 
         # Matching Codex CLI: prompt_cache_key = conversation_id so each
         # conversation gets its own cache partition on the Azure backend.

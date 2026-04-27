@@ -15,7 +15,7 @@ class TestError400(ReplyBase):
     expected_downstream_response_body = b"""
 Check "azure_response" for the error details:
 \t{
-\t    "endpoint": "https://t***e.openai.azure.com/openai/responses?api-version=2025-04-01-preview",
+\t    "endpoint": "https://t***e.openai.azure.com/openai/v1/responses",
 \t    "azure_status_code": 400,
 \t    "azure_response": {
 \t        "foo": "bar"
@@ -51,7 +51,7 @@ class TestError401(ReplyBase):
     expected_downstream_response_body = b"""
 Check "azure_response" for the error details:
 \t{
-\t    "endpoint": "https://t***e.openai.azure.com/openai/responses?api-version=2025-04-01-preview",
+\t    "endpoint": "https://t***e.openai.azure.com/openai/v1/responses",
 \t    "azure_status_code": 401,
 \t    "azure_response": {
 \t        "error": "Bad API Key or whatever"
@@ -87,7 +87,7 @@ class TestError500(ReplyBase):
     expected_downstream_response_body = b"""
 Check "azure_response" for the error details:
 \t{
-\t    "endpoint": "https://t***e.openai.azure.com/openai/responses?api-version=2025-04-01-preview",
+\t    "endpoint": "https://t***e.openai.azure.com/openai/v1/responses",
 \t    "azure_status_code": 500,
 \t    "azure_response": "Internal Server Error",
 \t    "request_body": {

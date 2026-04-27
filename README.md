@@ -20,9 +20,11 @@ It was built to get **full Cursor feature parity** on Azure, including things mo
 
 ## Key Features
 
-### Native Model Selection (No Legacy Aliases)
+### Native Multi-Model Selection (No Legacy Aliases)
 
-Unlike approaches that use generic aliases like `gpt-high` / `gpt-medium`, this proxy uses Cursor's **real model IDs** (e.g. `gpt-5.4`, `gpt-5.4-mini`). You select models in Cursor the same way you would without a custom API. This means **Cursor sends its tailored, model-specific system prompts** rather than generic fallbacks — resulting in noticeably better output quality, because each model gets the prompt engineering Cursor designed for it.
+Unlike older proxy setups that forced you into one deployment or generic aliases like `gpt-high` / `gpt-medium`, this proxy exposes many Cursor-native models at the same time. You can keep `gpt-5.5`, `gpt-5.4`, `gpt-5.4-mini`, Codex variants, and other supported IDs available in Cursor's built-in model picker, then switch between them per chat exactly like you would with Cursor's default model selection.
+
+The proxy uses Cursor's **real model IDs** (e.g. `gpt-5.4`, `gpt-5.4-mini`). This means **Cursor sends its tailored, model-specific system prompts** rather than generic fallbacks — resulting in noticeably better output quality, because each model gets the prompt engineering Cursor designed for it.
 
 The proxy preserves Cursor's native `reasoning.effort` field and forwards it directly to Azure, so Cursor's thinking controls (low / medium / high) work exactly as intended.
 
@@ -37,6 +39,8 @@ The proxy extracts `metadata.cursorConversationId` from each request and uses it
 - `parallel_tool_calls: true`
 
 This means long Cursor conversations reuse their prompt cache across turns, significantly reducing input token costs and latency. The proxy logs cache hit rates per request (`USAGE:` lines) and includes `prompt_tokens_details.cached_tokens` in the response so Cursor can display cache statistics.
+
+In real Cursor agent sessions, mature conversations regularly hit the practical ceiling for prompt caching — often **99%+ cached input tokens** once the stable context is warm. Parallel tool calls, subagents, and multiple concurrent agent flows can run without throwing away the cache, because each conversation keeps its own cache key and Azure backend affinity instead of sharing one global user bucket.
 
 > **Why this matters:** The `user` field is a per-user hash shared across all conversations — using it for cache routing would mix unrelated conversations on the same cache partition. This proxy explicitly routes by conversation ID instead.
 
@@ -105,7 +109,7 @@ Requests are pretty-printed with [Rich](https://github.com/Textualize/rich): col
 
 ## Supported Models
 
-The proxy accepts these Cursor-facing model IDs:
+The proxy accepts these Cursor-facing model IDs in parallel. Configure one Azure deployment per model you want to use, then select among them directly in Cursor's built-in model picker — no legacy alias swapping or separate proxy instances required.
 
 | Model | Status |
 |---|---|
@@ -146,7 +150,7 @@ AZURE_BASE_URL=https://your-resource.openai.azure.com
 AZURE_API_KEY=your-azure-api-key
 ```
 
-`AZURE_BASE_URL` is the Azure OpenAI resource root. Do **not** append `/openai/v1` or `/openai/responses` — the proxy builds the full URL itself.
+`AZURE_BASE_URL` is the Azure OpenAI resource root. Do **not** append `/openai/v1` or `/openai/responses` — the proxy builds the full Azure v1 Responses URL itself.
 
 ### 2. Start
 
@@ -172,7 +176,7 @@ Settings > Models > OpenAI API Key    →  the SERVICE_API_KEY from .env
 Settings > Models > Override Base URL →  https://your-public-proxy-url
 ```
 
-Then select models normally in Cursor (e.g. `gpt-5.4`, `gpt-5.4-mini`). No special configuration needed — Cursor uses its built-in model-specific prompts automatically.
+Then select models normally in Cursor (e.g. `gpt-5.5`, `gpt-5.4`, `gpt-5.4-mini`, Codex variants). Multiple mapped Azure deployments can be available side-by-side through Cursor's built-in model picker; you no longer need the old one-model-at-a-time alias workflow. Cursor also keeps using its built-in model-specific prompts automatically.
 
 ---
 
@@ -191,7 +195,6 @@ Then select models normally in Cursor (e.g. `gpt-5.4`, `gpt-5.4-mini`). No speci
 | Variable | Default | Description |
 |---|---|---|
 | `AZURE_MODEL_DEPLOYMENTS` | Identity map | JSON mapping from Cursor model IDs to Azure deployment names |
-| `AZURE_API_VERSION` | `2025-04-01-preview` | Azure Responses API version |
 | `AZURE_SUMMARY_LEVEL` | `detailed` | Reasoning summary: `auto`, `detailed`, or `concise` |
 | `AZURE_VERBOSITY_LEVEL` | `medium` | Text verbosity: `low`, `medium`, or `high` |
 | `AZURE_TRUNCATION` | `disabled` | Truncation mode: `auto` or `disabled` |
@@ -202,13 +205,13 @@ Then select models normally in Cursor (e.g. `gpt-5.4`, `gpt-5.4-mini`). No speci
 
 ### Deployment Mapping
 
-If your Azure deployment names match the Cursor model IDs, leave `AZURE_MODEL_DEPLOYMENTS` empty. Otherwise, map only the ones that differ:
+If your Azure deployment names match the Cursor model IDs, leave `AZURE_MODEL_DEPLOYMENTS` empty. Otherwise, map each Cursor model ID to the Azure deployment that should serve it:
 
 ```env
-AZURE_MODEL_DEPLOYMENTS={"gpt-5.4":"prod-gpt54","gpt-5.4-mini":"team-mini"}
+AZURE_MODEL_DEPLOYMENTS={"gpt-5.5":"prod-gpt55","gpt-5.4":"prod-gpt54","gpt-5.4-mini":"team-mini"}
 ```
 
-Cursor still sees `gpt-5.4`; Azure receives `prod-gpt54`.
+Cursor still sees the native IDs (`gpt-5.5`, `gpt-5.4`, `gpt-5.4-mini`) and can switch between them normally. Azure receives the matching deployment name for the selected model.
 
 ---
 
@@ -344,9 +347,6 @@ Sensitive data (content, instructions, user IDs, function names) is automaticall
 ---
 
 ## Troubleshooting
-
-**`Environment variable "AZURE_API_VERSION" not set`**
-Set the optional Azure variables in `.env`, or leave them empty to use defaults.
 
 **`401` / `403` from Azure**
 Check `AZURE_API_KEY`, the Azure resource, and whether the deployment exists.

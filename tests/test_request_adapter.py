@@ -158,3 +158,39 @@ def test_request_adapter_strips_include_usage_for_azure(app):
     assert request_kwargs["json"]["stream_options"]["include_obfuscation"] is False
     # The flag should be stored on the shared adapter for the response side
     assert azure_adapter.include_usage is True
+
+
+def test_request_adapter_transforms_forced_function_tool_choice_for_responses(app):
+    """Convert Chat Completions forced tool choice to Responses API shape."""
+    adapter = AzureAdapter().request_adapter
+    request = app.test_request_context(
+        "/chat/completions",
+        method="POST",
+        json={
+            "model": "gpt-5.4",
+            "input": [
+                {"role": "user", "content": [{"type": "input_text", "text": "Hi"}]}
+            ],
+            "reasoning": {"effort": "high", "summary": "auto"},
+            "stream": True,
+            "tools": [
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "smoke_test",
+                        "description": "Smoke test function call plumbing.",
+                        "parameters": {"type": "object"},
+                    },
+                }
+            ],
+            "tool_choice": {"type": "function", "function": {"name": "smoke_test"}},
+        },
+        headers={"Authorization": "Bearer test-service-api-key"},
+    ).request
+
+    request_kwargs = adapter.adapt(request)
+
+    assert request_kwargs["json"]["tool_choice"] == {
+        "type": "function",
+        "name": "smoke_test",
+    }

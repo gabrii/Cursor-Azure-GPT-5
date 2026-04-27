@@ -26,7 +26,7 @@ class ReplyBase:
     expected_downstream_status_code: int = 200
 
     # Endpoint to mock for the upstream request
-    UPSTREAM_URL = "https://test-resource.openai.azure.com/openai/responses?api-version=2025-04-01-preview"
+    UPSTREAM_URL = "https://test-resource.openai.azure.com/openai/v1/responses"
 
     def _get_recording_path(self, file_name: str) -> str:
         return os.path.join("tests", "recordings", self.recording, file_name)
