@@ -119,13 +119,13 @@ The proxy accepts these Cursor-facing model IDs in parallel. Configure one Azure
 | `gpt-5.4-nano` | Verified |
 | `gpt-5.3-codex` | Verified |
 | `gpt-5.2` | Expected to work (same Responses API) |
-| `gpt-5.2-codex` | Expected to work (same Responses API) |
+| `gpt-5.2-codex` | Verified |
 | `gpt-5.1` | Expected to work (same Responses API) |
 | `gpt-5.1-codex` | Expected to work (same Responses API) |
 | `gpt-5.1-codex-max` | Expected to work (same Responses API) |
-| `gpt-5.1-codex-mini` | Expected to work (same Responses API) |
+| `gpt-5.1-codex-mini` | Verified |
 | `gpt-5` | Expected to work (same Responses API) |
-| `gpt-5-mini` | Expected to work (same Responses API) |
+| `gpt-5-mini` | Verified |
 | `gpt-5-codex` | Expected to work (same Responses API) |
 
 **Verified** = manually tested end-to-end with a real Cursor client through the proxy to Azure. **Expected to work** = these models use the same Azure Responses API surface, but have not been individually verified. If you test one and it works (or doesn't), please [open an issue](https://github.com/gabrii/Cursor-Azure-GPT-5/issues) so we can update this table.
