@@ -18,6 +18,12 @@ def create_app(config_object="app.settings"):
         app.config["AZURE_MODEL_DEPLOYMENTS"] = dict(
             app.config["AZURE_MODEL_DEPLOYMENTS"]
         )
+    if "CODEX_MODEL_REWRITES" in app.config:
+        app.config["CODEX_MODEL_REWRITES"] = dict(app.config["CODEX_MODEL_REWRITES"])
+    if "CODEX_SUPPORTED_MODELS" in app.config:
+        app.config["CODEX_SUPPORTED_MODELS"] = tuple(
+            app.config["CODEX_SUPPORTED_MODELS"]
+        )
 
     configure_logging(app)
     register_commands(app)

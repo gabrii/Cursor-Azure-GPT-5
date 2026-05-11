@@ -2,9 +2,9 @@
 
 > **This project is back and actively maintained.** After months of dependency-only updates, the proxy has been overhauled with a complete rewrite of the request/response layer, full Responses API support, prompt caching, native reasoning controls, and much more. It is being used daily in production with Cursor. **If you run into issues, please [open an issue](https://github.com/gabrii/Cursor-Azure-GPT-5/issues)** — bug reports and feedback are essential to keep this working well for everyone.
 
-A Flask proxy that lets **Cursor** use **Azure OpenAI** deployments as if they were native OpenAI models — with full support for streaming, reasoning, tool calls, and prompt caching.
+A Flask proxy that lets **Cursor** use **Azure OpenAI** deployments or a **Codex/ChatGPT monthly subscription** as first-class OpenAI-compatible providers — with full support for streaming, reasoning, tool calls, and prompt caching where the upstream supports it.
 
-Cursor sends standard OpenAI requests. This proxy translates them to Azure's Responses API on the fly, then streams back responses in the exact format Cursor expects. No Cursor modifications needed, no forks — just point and go.
+Cursor sends standard OpenAI requests. This proxy translates them to the selected provider's Responses API on the fly, then streams back responses in the exact format Cursor expects. No Cursor modifications needed, no forks — just point and go.
 
 > **You still need a paid Cursor plan.** This project only redirects where model traffic goes.
 
@@ -12,25 +12,41 @@ Cursor sends standard OpenAI requests. This proxy translates them to Azure's Res
 
 ## Why This Exists
 
-Cursor talks OpenAI. Azure talks Responses API. The two formats differ in request structure, streaming event types, tool call schemas, and usage reporting. This proxy sits in the middle and handles the full translation — both directions, in real time, while streaming.
+Cursor talks OpenAI. Azure and Codex both speak Responses-style APIs with provider-specific auth, routing, event streams, and request details. This proxy sits in the middle and handles the translation — both directions, in real time, while streaming.
 
-It was built to get **full Cursor feature parity** on Azure, including things most simple proxies break: reasoning effort controls, extended thinking with `<think>` tags, parallel tool calls, native Azure tool types (shell, patch, MCP), and prompt caching with per-conversation cache affinity.
+It was built to make both backends practical in Cursor:
+
+- **Azure provider:** use your Azure OpenAI deployments with Cursor-native model IDs, reasoning effort controls, Azure prompt caching, and Azure Responses streaming.
+- **Codex provider:** use your existing ChatGPT monthly subscription through Codex auth (`codex login`) from Cursor, with Codex request adaptation, Codex auth-state refresh, and Chat Completions compatibility.
+
+Azure remains the root URL for backward compatibility. Codex is selected explicitly with `/codex`; it is not a secondary fallback path.
 
 ---
 
 ## Key Features
 
+### First-Class Azure And Codex Providers
+
+Azure and Codex are separate providers with separate model lists, separate upstream auth, and explicit routing:
+
+- `/` and `/azure` route to Azure.
+- `/codex` routes to the Codex/ChatGPT subscription provider.
+- Both use the same Cursor-facing `SERVICE_API_KEY`.
+- Disabling one provider returns a local error instead of falling through to the other.
+
+This lets one public host serve Azure-backed Cursor clients and ChatGPT-subscription-backed Cursor clients at the same time. For users with a ChatGPT monthly subscription, the Codex provider is the main feature: it makes that subscription usable from Cursor through the same OpenAI-compatible surface.
+
 ### Native Multi-Model Selection (No Legacy Aliases)
 
-Unlike older proxy setups that forced you into one deployment or generic aliases like `gpt-high` / `gpt-medium`, this proxy exposes many Cursor-native models at the same time. You can keep `gpt-5.5`, `gpt-5.4`, `gpt-5.4-mini`, Codex variants, and other supported IDs available in Cursor's built-in model picker, then switch between them per chat exactly like you would with Cursor's default model selection.
+Unlike older proxy setups that forced you into one deployment or generic aliases like `gpt-high` / `gpt-medium`, this proxy exposes many Cursor-native models at the same time. Azure and Codex each publish their own provider-local model list, so you can keep `gpt-5.5`, `gpt-5.4`, `gpt-5.4-mini`, Codex variants, and other supported IDs available in Cursor's built-in model picker, then switch between them per chat exactly like you would with Cursor's default model selection.
 
 The proxy uses Cursor's **real model IDs** (e.g. `gpt-5.4`, `gpt-5.4-mini`). This means **Cursor sends its tailored, model-specific system prompts** rather than generic fallbacks — resulting in noticeably better output quality, because each model gets the prompt engineering Cursor designed for it.
 
-The proxy preserves Cursor's native `reasoning.effort` field and forwards it directly to Azure, so Cursor's thinking controls (low / medium / high) work exactly as intended.
+The proxy preserves Cursor's native `reasoning.effort` field and forwards it to the selected provider, so Cursor's thinking controls (low / medium / high) work exactly as intended when the upstream model supports them.
 
-### Prompt Caching with Per-Conversation Affinity
+### Azure Prompt Caching with Per-Conversation Affinity
 
-The proxy extracts `metadata.cursorConversationId` from each request and uses it as the cache routing key. For every conversation it sets:
+For Azure, the proxy extracts `metadata.cursorConversationId` from each request and uses it as the cache routing key. For every Azure conversation it sets:
 
 - `prompt_cache_key` = conversation ID
 - `session_id` = conversation ID (pins requests to the same Azure backend machine)
@@ -38,7 +54,7 @@ The proxy extracts `metadata.cursorConversationId` from each request and uses it
 - `store: true` (enables Azure server-side storage for 24h cache retention)
 - `parallel_tool_calls: true`
 
-This means long Cursor conversations reuse their prompt cache across turns, significantly reducing input token costs and latency. The proxy logs cache hit rates per request (`USAGE:` lines) and includes `prompt_tokens_details.cached_tokens` in the response so Cursor can display cache statistics.
+This means long Azure-backed Cursor conversations reuse their prompt cache across turns, significantly reducing input token costs and latency. The proxy logs cache hit rates per request (`USAGE:` lines) and includes `prompt_tokens_details.cached_tokens` in the response so Cursor can display cache statistics.
 
 In real Cursor agent sessions, mature conversations regularly hit the practical ceiling for prompt caching — often **99%+ cached input tokens** once the stable context is warm. Parallel tool calls, subagents, and multiple concurrent agent flows can run without throwing away the cache, because each conversation keeps its own cache key and Azure backend affinity instead of sharing one global user bucket.
 
@@ -46,7 +62,7 @@ In real Cursor agent sessions, mature conversations regularly hit the practical 
 
 ### Complete SSE Event Translation
 
-Azure's Responses API emits 53+ different SSE event types. The proxy handles all of them:
+Azure and Codex stream Responses-style SSE events. The proxy converts provider SSE back to OpenAI Chat Completions chunks for Cursor, and the Azure adapter handles the broad Azure event surface:
 
 - **Reasoning:** `reasoning_text.delta`, `reasoning_summary_text.delta` — streamed inside `<think>` tags
 - **Text:** `output_text.delta` — standard content streaming
@@ -81,7 +97,7 @@ When Azure returns native tool types that Cursor doesn't understand natively, th
 
 ### Token Usage and Cost Tracking
 
-Every response includes full usage metadata in OpenAI Chat Completions format:
+Provider usage metadata is mapped back to OpenAI Chat Completions format when it is available:
 
 - `prompt_tokens` (including cached)
 - `completion_tokens`
@@ -109,7 +125,9 @@ Requests are pretty-printed with [Rich](https://github.com/Textualize/rich): col
 
 ## Supported Models
 
-The proxy accepts these Cursor-facing model IDs in parallel. Configure one Azure deployment per model you want to use, then select among them directly in Cursor's built-in model picker — no legacy alias swapping or separate proxy instances required.
+Azure and Codex model lists are separate. Root and `/azure` expose Azure models. `/codex` exposes the Codex/ChatGPT subscription model list from `CODEX_SUPPORTED_MODELS`.
+
+The Azure provider accepts these Cursor-facing model IDs in parallel. Configure one Azure deployment per model you want to use, then select among them directly in Cursor's built-in model picker — no legacy alias swapping or separate proxy instances required.
 
 | Model | Status |
 |---|---|
@@ -130,7 +148,39 @@ The proxy accepts these Cursor-facing model IDs in parallel. Configure one Azure
 
 **Verified** = manually tested end-to-end with a real Cursor client through the proxy to Azure. **Expected to work** = these models use the same Azure Responses API surface, but have not been individually verified. If you test one and it works (or doesn't), please [open an issue](https://github.com/gabrii/Cursor-Azure-GPT-5/issues) so we can update this table.
 
+The Codex provider defaults to:
+
+```env
+CODEX_SUPPORTED_MODELS=gpt-5.5,gpt-5.4,gpt-5.4-mini,gpt-5.3-codex,gpt-5.3-codex-spark
+```
+
+That list is intentionally configurable because Codex/ChatGPT subscription availability can differ by account and over time.
+
 Legacy aliases (`gpt-high`, `gpt-medium`, `gpt-low`, `gpt-minimal`) are **intentionally not supported**. Use Cursor's native model picker and thinking controls instead — the proxy forwards `reasoning.effort` directly.
+
+---
+
+## Provider Paths
+
+Azure and Codex are peers. The only reason Azure owns the root path is backward compatibility with existing deployments. The same public host can expose one or both providers:
+
+| Cursor Override Base URL | Provider | Model list |
+|---|---|---|
+| `https://your-public-proxy-url` | Azure | Azure models |
+| `https://your-public-proxy-url/azure` | Azure | Azure models |
+| `https://your-public-proxy-url/codex` | Codex | Codex models |
+
+Root is always Azure. It never falls through to Codex. Switching a Cursor client from Azure to the ChatGPT subscription-backed Codex provider only requires changing the provider word in the base URL from `/azure` to `/codex`; the OpenAI API key remains the same `SERVICE_API_KEY`.
+
+### GPT-5.5 Cursor Routing Issue
+
+Cursor may currently fail to route direct `gpt-5.5` custom-base-url traffic to this proxy and instead return `User API Key Rate limit exceeded`. Until Cursor routes native `gpt-5.5` custom URLs correctly, the Codex provider supports an explicit temporary rewrite:
+
+```env
+CODEX_MODEL_REWRITES=gpt-5.4:gpt-5.5
+```
+
+With that setting, configure Cursor to send `gpt-5.4` through the `/codex` custom base URL and the proxy rewrites only the upstream `model` field to `gpt-5.5`. This is a stopgap, not native `gpt-5.5` support: Cursor still builds the prompt, tools, and reasoning setup for `gpt-5.4`, so there is prompt/model skew. Remove the rewrite when Cursor can route `gpt-5.5` directly.
 
 ---
 
@@ -146,6 +196,8 @@ Edit `.env` with your credentials:
 
 ```env
 SERVICE_API_KEY=choose-a-local-secret
+ENABLE_AZURE=true
+ENABLE_CODEX=false
 AZURE_BASE_URL=https://your-resource.openai.azure.com
 AZURE_API_KEY=your-azure-api-key
 ```
@@ -176,7 +228,40 @@ Settings > Models > OpenAI API Key    →  the SERVICE_API_KEY from .env
 Settings > Models > Override Base URL →  https://your-public-proxy-url
 ```
 
-Then select models normally in Cursor (e.g. `gpt-5.5`, `gpt-5.4`, `gpt-5.4-mini`, Codex variants). Multiple mapped Azure deployments can be available side-by-side through Cursor's built-in model picker; you no longer need the old one-model-at-a-time alias workflow. Cursor also keeps using its built-in model-specific prompts automatically.
+Then select models normally in Cursor (e.g. `gpt-5.5`, `gpt-5.4`, `gpt-5.4-mini`, Codex variants). Multiple mapped Azure deployments and Codex subscription models can be available side-by-side on the same host; you switch provider by changing the base URL path. Cursor also keeps using its built-in model-specific prompts automatically.
+
+### Azure-Only Setup
+
+Use the default provider switches:
+
+```env
+ENABLE_AZURE=true
+ENABLE_CODEX=false
+```
+
+Set Cursor's override base URL to `https://your-public-proxy-url` or `https://your-public-proxy-url/azure`.
+
+### Codex-Only Setup
+
+Run `codex login` first so `~/.codex/auth.json` contains ChatGPT auth state from the account that has the monthly subscription you want to use, then configure:
+
+```env
+ENABLE_AZURE=false
+ENABLE_CODEX=true
+CODEX_AUTH_PATH=~/.codex/auth.json
+CODEX_SUPPORTED_MODELS=gpt-5.5,gpt-5.4,gpt-5.4-mini,gpt-5.3-codex,gpt-5.3-codex-spark
+```
+
+Set Cursor's override base URL to `https://your-public-proxy-url/codex`.
+
+### Both Providers On One Host
+
+```env
+ENABLE_AZURE=true
+ENABLE_CODEX=true
+```
+
+Use `https://your-public-proxy-url/azure` for Azure clients and `https://your-public-proxy-url/codex` for Codex clients. Both use the same `SERVICE_API_KEY`.
 
 ---
 
@@ -187,17 +272,28 @@ Then select models normally in Cursor (e.g. `gpt-5.5`, `gpt-5.4`, `gpt-5.4-mini`
 | Variable | Description |
 |---|---|
 | `SERVICE_API_KEY` | Secret the proxy validates against Cursor's `OpenAI API Key` setting |
-| `AZURE_BASE_URL` | Azure OpenAI resource URL (e.g. `https://name.openai.azure.com`) |
-| `AZURE_API_KEY` | Azure OpenAI API key |
+| `AZURE_BASE_URL` | Azure OpenAI resource URL when Azure is enabled |
+| `AZURE_API_KEY` | Azure OpenAI API key when Azure is enabled |
+| `CODEX_AUTH_PATH` | Codex ChatGPT auth file when Codex is enabled |
 
 ### Optional
 
 | Variable | Default | Description |
 |---|---|---|
+| `ENABLE_AZURE` | `true` | Enable the root and `/azure` provider |
+| `ENABLE_CODEX` | `false` | Enable the `/codex` provider |
 | `AZURE_MODEL_DEPLOYMENTS` | Identity map | JSON mapping from Cursor model IDs to Azure deployment names |
 | `AZURE_SUMMARY_LEVEL` | `detailed` | Reasoning summary: `auto`, `detailed`, or `concise` |
 | `AZURE_VERBOSITY_LEVEL` | `medium` | Text verbosity: `low`, `medium`, or `high` |
 | `AZURE_TRUNCATION` | `disabled` | Truncation mode: `auto` or `disabled` |
+| `CODEX_RESPONSES_URL` | ChatGPT Codex backend URL | Codex Responses endpoint used by ChatGPT subscription auth |
+| `CODEX_SUPPORTED_MODELS` | Codex default list | Comma-separated Codex/ChatGPT subscription model list exposed at `/codex/v1/models` |
+| `CODEX_MODEL_REWRITES` | Empty | Comma-separated `source:target` rewrites for temporary routing workarounds |
+| `CODEX_ORIGINATOR` | `codex_cli_rs` | Codex upstream originator header |
+| `CODEX_USER_AGENT` | Codex proxy UA | Codex upstream user-agent header |
+| `CODEX_DISCOVERY_MODE` | `false` | Allows first captures without Cursor markers |
+| `CODEX_TOKEN_REFRESH_SKEW_SECONDS` | `300` | Refresh access tokens before expiry |
+| `CODEX_REQUEST_TIMEOUT_SECONDS` | `600` | Codex upstream read timeout |
 | `RECORD_TRAFFIC` | `off` | Write redacted request/response fixtures to `recordings/` |
 | `LOG_CONTEXT` | `on` | Log incoming request details |
 | `LOG_COMPLETION` | `on` | Log streamed completion content |
@@ -255,9 +351,16 @@ Runs Flask dev server on port `8082` with volume mounts for live reload.
 | Method | Path | Auth | Description |
 |---|---|---|---|
 | `GET` | `/health` | No | Health check |
-| `GET` | `/v1/models` | Bearer | List supported models |
-| `POST` | `/v1/chat/completions` | Bearer | Chat completions (forwarded to Azure) |
-| `POST` | `/openai/responses` | Bearer | Responses API (forwarded to Azure) |
+| `GET` | `/v1/models` | Bearer | List Azure models |
+| `GET` | `/azure/v1/models` | Bearer | List Azure models |
+| `GET` | `/codex/v1/models` | Bearer | List Codex/ChatGPT subscription models |
+| `GET` | `/codex/ready` | Bearer | Validate Codex auth state |
+| `POST` | `/v1/chat/completions` | Bearer | Chat completions forwarded to Azure |
+| `POST` | `/azure/v1/chat/completions` | Bearer | Chat completions forwarded to Azure |
+| `POST` | `/codex/v1/chat/completions` | Bearer | Chat completions forwarded to Codex |
+| `POST` | `/v1/responses` | Bearer | Responses API forwarded to Azure |
+| `POST` | `/azure/v1/responses` | Bearer | Responses API forwarded to Azure |
+| `POST` | `/codex/v1/responses` | Bearer | Responses API forwarded to Codex |
 | `*` | `/*` | Bearer | Catch-all proxy |
 
 ---
@@ -271,6 +374,12 @@ curl http://127.0.0.1:8082/health
 # Model list (requires auth)
 curl -H "Authorization: Bearer $SERVICE_API_KEY" \
   http://127.0.0.1:8082/v1/models
+
+# Codex readiness and model list, when ENABLE_CODEX=true
+curl -H "Authorization: Bearer $SERVICE_API_KEY" \
+  http://127.0.0.1:8082/codex/ready
+curl -H "Authorization: Bearer $SERVICE_API_KEY" \
+  http://127.0.0.1:8082/codex/v1/models
 ```
 
 ---
@@ -278,13 +387,20 @@ curl -H "Authorization: Bearer $SERVICE_API_KEY" \
 ## Architecture
 
 ```
-Cursor ──► Proxy ──► Azure OpenAI
+Cursor ──► Proxy ─┬─► Azure OpenAI        / and /azure
+                  └─► Codex/ChatGPT      /codex
            │
-           ├── blueprint.py          Routes & auth
+           ├── blueprint.py          Provider routing & auth
            ├── azure/
            │   ├── adapter.py        Orchestrator
            │   ├── request_adapter.py Chat → Responses format
            │   └── response_adapter.py Azure SSE → Chat SSE
+           ├── codex/
+           │   ├── adapter.py        Flask Codex provider
+           │   ├── auth_state.py     Codex ChatGPT auth handling
+           │   ├── request_adapter.py Cursor → Codex Responses format
+           │   ├── response_adapter.py Codex SSE → Chat SSE
+           │   └── upstream.py       Codex headers & request
            ├── models.py             Model list & deployment map
            ├── settings.py           Env config
            ├── auth.py               Bearer token validation
@@ -298,10 +414,11 @@ Cursor ──► Proxy ──► Azure OpenAI
 **Request flow:**
 
 1. Cursor sends POST to proxy (Chat Completions or Responses format)
-2. `RequestAdapter` transforms to Azure Responses API format, sets cache headers
-3. `requests.request()` streams from Azure
-4. `ResponseAdapter` converts each Azure SSE event to a Chat Completions chunk
-5. Flask streams the converted response back to Cursor
+2. `blueprint.py` selects Azure for root or `/azure`, Codex for `/codex`
+3. The provider request adapter transforms to its Responses API format
+4. `requests` forwards upstream
+5. The provider response adapter converts SSE events to Chat Completions chunks when Cursor used Chat Completions
+6. Flask streams the converted response back to Cursor
 
 ---
 
@@ -337,8 +454,8 @@ Set `RECORD_TRAFFIC=on` to write redacted request/response pairs to `recordings/
 recordings/
   1/
     downstream_request.json    # What Cursor sent
-    upstream_request.json      # What we sent to Azure
-    upstream_response.sse      # Azure's raw SSE stream
+    upstream_request.json      # What we sent upstream
+    upstream_response.sse      # Upstream raw SSE stream
     downstream_response.sse    # What we sent back to Cursor
 ```
 
@@ -360,3 +477,8 @@ The override base URL must be reachable from outside your machine. `http://local
 **Auth mismatch**
 The proxy returns a clear error: the `OpenAI API Key` in Cursor settings must exactly match `SERVICE_API_KEY` in `.env`.
 
+**Codex is not ready**
+Run `codex login` on the machine hosting the proxy, confirm `CODEX_AUTH_PATH` points at that auth file, and check `/codex/ready` with the shared bearer secret.
+
+**Codex model does not appear**
+Check `CODEX_SUPPORTED_MODELS`. `/codex/v1/models` is intentionally separate from `/v1/models` and `/azure/v1/models`.
