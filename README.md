@@ -188,13 +188,25 @@ Root is always Azure. It never falls through to Codex. Switching a Cursor client
 
 ### GPT-5.5 Cursor Routing Issue
 
-Cursor may currently fail to route direct `gpt-5.5` custom-base-url traffic to this proxy and instead return `User API Key Rate limit exceeded`. Until Cursor routes native `gpt-5.5` custom URLs correctly, the Codex provider supports an explicit temporary rewrite:
+Cursor may currently fail to route direct `gpt-5.5` custom-base-url traffic to this proxy and instead return `User API Key Rate limit exceeded`.
+
+Until Cursor routes native `gpt-5.5` custom URLs correctly, Codex users can use an explicit temporary rewrite:
 
 ```env
 CODEX_MODEL_REWRITES=gpt-5.4:gpt-5.5
 ```
 
-With that setting, configure Cursor to send `gpt-5.4` through the `/codex` custom base URL and the proxy rewrites only the upstream `model` field to `gpt-5.5`. This is a stopgap, not native `gpt-5.5` support: Cursor still builds the prompt, tools, and reasoning setup for `gpt-5.4`, so there is prompt/model skew. Remove the rewrite when Cursor can route `gpt-5.5` directly.
+With that setting, configure Cursor to send `gpt-5.4` through the `/codex` custom base URL and the proxy rewrites only the upstream `model` field to `gpt-5.5`.
+
+Azure users can use the deployment mapping mechanism for the same workaround:
+
+```env
+AZURE_MODEL_DEPLOYMENTS={"gpt-5.4":"your-gpt-5.5-deployment-name"}
+```
+
+With that setting, configure Cursor to send `gpt-5.4` through the Azure/root custom base URL and the proxy sends the request to your configured `gpt-5.5` Azure deployment.
+
+Both workarounds are stopgaps, not native `gpt-5.5` support. Cursor still builds the prompt, tool setup, reasoning defaults, and session identity for the source model (`gpt-5.4` in these examples), so there is prompt/model skew. We do not know exactly whether Cursor's `gpt-5.4` and `gpt-5.5` prompts differ or by how much, so performance and behavior may not be identical to native `gpt-5.5` routing. Remove these workarounds when Cursor can route `gpt-5.5` directly.
 
 ---
 
