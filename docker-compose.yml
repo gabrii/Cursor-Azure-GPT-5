@@ -20,6 +20,10 @@ services:
       GUNICORN_WORKERS: "1"
     ports:
       - "127.0.0.1:5000:5000"
+    volumes:
+      # Mount the host Codex login state into the container user home so token
+      # refresh can update auth.json in place across different machines/users.
+      - "${HOME}/.codex:/home/sid/.codex"
     healthcheck:
       test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/health')"]
       interval: 10s

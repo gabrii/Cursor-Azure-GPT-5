@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from typing import Any
+from collections.abc import Iterator
 
 import requests
-from flask import Request, Response, jsonify
+from flask import Request, Response, jsonify, stream_with_context
 
 from .auth_state import AuthStateError, CodexAuthManager, CodexAuthStore
 from .request_adapter import CursorRequestAdapter, UnsupportedCursorShape
@@ -40,10 +40,11 @@ class CodexAdapter:
             adapted = CursorRequestAdapter(self.settings).adapt(
                 provider_path, payload, downstream_headers
             )
-            auth = CodexAuthManager(
+            auth_manager = CodexAuthManager(
                 CodexAuthStore(self.settings.codex_auth_path),
                 refresh_skew_seconds=self.settings.token_refresh_skew_seconds,
-            ).current()
+            )
+            auth = auth_manager.current()
         except (UnsupportedCursorShape, AuthStateError) as exc:
             return jsonify({"error": {"message": str(exc)}}), 400
 
@@ -61,6 +62,22 @@ class CodexAdapter:
                 adapted.body,
                 timeout=self.settings.request_timeout_seconds,
             )
+            if upstream_response.status_code == 401:
+                upstream_response.close()
+                auth = auth_manager.refresh(force=True)
+                headers = build_upstream_headers(
+                    self.settings,
+                    auth,
+                    session_id=adapted.session_id,
+                    thread_id=adapted.thread_id,
+                    downstream_headers=downstream_headers,
+                )
+                upstream_response = post_responses(
+                    self.settings.codex_responses_url,
+                    headers,
+                    adapted.body,
+                    timeout=self.settings.request_timeout_seconds,
+                )
         except requests.RequestException as exc:
             return (
                 jsonify(
@@ -68,38 +85,51 @@ class CodexAdapter:
                 ),
                 502,
             )
+        except AuthStateError as exc:
+            return jsonify({"error": {"message": str(exc)}}), 400
 
-        content = _response_content(upstream_response)
-        if (
-            _wants_chat_completion_response(provider_path)
-            and upstream_response.status_code == 200
-        ):
-            content = b"".join(
-                adapt_responses_sse_to_chat_sse(
-                    [content], model=str(adapted.body.get("model", ""))
-                )
-            )
+        def stream_response():
+            try:
+                chunks = _response_chunks(upstream_response)
+                if (
+                    _wants_chat_completion_response(provider_path)
+                    and upstream_response.status_code == 200
+                ):
+                    chunks = adapt_responses_sse_to_chat_sse(
+                        chunks, model=str(adapted.body.get("model", ""))
+                    )
+                yield from chunks
+            finally:
+                close = getattr(upstream_response, "close", None)
+                if callable(close):
+                    close()
 
         return Response(
-            content,
+            stream_with_context(stream_response()),
             status=upstream_response.status_code,
             headers={
                 "content-type": upstream_response.headers.get(
                     "content-type", "text/event-stream"
                 ),
                 "cache-control": "no-cache",
+                "x-accel-buffering": "no",
             },
         )
 
 
 def _wants_chat_completion_response(path: str) -> bool:
-    return path.rstrip("/").endswith("/chat/completions")
+    clean_path = path.strip("/")
+    return clean_path == "chat/completions" or clean_path.endswith("/chat/completions")
 
 
-def _response_content(response: Any) -> bytes:
+def _response_chunks(response) -> Iterator[bytes]:
+    iter_content = getattr(response, "iter_content", None)
+    if callable(iter_content):
+        yield from iter_content(chunk_size=8192)
+        return
+
     content = getattr(response, "content", None)
     if isinstance(content, bytes):
-        return content
-    if isinstance(content, str):
-        return content.encode()
-    return b"".join(response.iter_content(chunk_size=8192))
+        yield content
+    elif isinstance(content, str):
+        yield content.encode()

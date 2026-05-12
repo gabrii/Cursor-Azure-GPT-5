@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import base64
 import binascii
+import fcntl
 import json
 import os
 import time
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterator
 
 import requests
 
@@ -131,10 +133,23 @@ class CodexAuthStore:
         )
 
     def validate_ready(self) -> None:
-        """Validate that Codex auth state is present and writable."""
+        """Validate that Codex auth state is present and refreshable on disk."""
         self.load()
-        if not os.access(self.path, os.R_OK | os.W_OK):
-            raise AuthStateError(f"Codex Login State is not writable at {self.path}")
+        try:
+            with self.path.open("r", encoding="utf-8"):
+                pass
+        except OSError as exc:
+            raise AuthStateError(
+                f"Codex Login State is not readable at {self.path}"
+            ) from exc
+        parent = self.path.parent
+        if not parent.exists():
+            raise AuthStateError(f"Codex Login State directory not found at {parent}")
+        if not os.access(parent, os.W_OK):
+            raise AuthStateError(
+                "Codex Login State directory is not writable for token refresh at "
+                f"{parent}"
+            )
 
     def save_tokens(
         self,
@@ -172,6 +187,21 @@ class CodexAuthStore:
         temp_path.replace(self.path)
         return self.load()
 
+    @contextmanager
+    def refresh_lock(self) -> Iterator[None]:
+        """Serialize refresh-token use across local workers/processes."""
+        lock_path = self.path.with_suffix(self.path.suffix + ".lock")
+        with lock_path.open("a+", encoding="utf-8") as lock_file:
+            try:
+                os.chmod(lock_path, 0o600)
+            except OSError:
+                pass
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+            try:
+                yield
+            finally:
+                fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+
 
 class CodexAuthManager:
     """Return current Codex auth state, refreshing when needed."""
@@ -188,33 +218,79 @@ class CodexAuthManager:
             return state
         return self.refresh()
 
-    def refresh(self) -> CodexAuthState:
+    def refresh(self, *, force: bool = False) -> CodexAuthState:
         """Refresh the Codex access token."""
-        before = self.store.load()
-        if not before.is_expired(skew_seconds=self.refresh_skew_seconds):
-            return before
-        response = requests.post(
-            REFRESH_URL,
-            headers={"Content-Type": "application/json"},
-            json={
-                "client_id": CLIENT_ID,
-                "grant_type": "refresh_token",
-                "refresh_token": before.refresh_token,
-            },
-            timeout=30.0,
-        )
-        if response.status_code == 401:
-            raise AuthStateError(
-                "Codex refresh token is invalid. Run Codex login again."
+        with self.store.refresh_lock():
+            before = self.store.load()
+            if not force and not before.is_expired(
+                skew_seconds=self.refresh_skew_seconds
+            ):
+                return before
+            response = requests.post(
+                REFRESH_URL,
+                headers={"Content-Type": "application/json"},
+                json={
+                    "client_id": CLIENT_ID,
+                    "grant_type": "refresh_token",
+                    "refresh_token": before.refresh_token,
+                },
+                timeout=30.0,
             )
-        if response.status_code >= 400:
-            raise AuthStateError(
-                f"Codex token refresh failed with HTTP {response.status_code}"
+            if response.status_code == 401:
+                raise AuthStateError(_refresh_token_401_message(response))
+            if response.status_code >= 400:
+                raise AuthStateError(
+                    f"Codex token refresh failed with HTTP {response.status_code}"
+                )
+            try:
+                data = response.json()
+            except ValueError as exc:
+                raise AuthStateError(
+                    "Codex token refresh returned invalid JSON."
+                ) from exc
+            if not isinstance(data, dict):
+                raise AuthStateError(
+                    "Codex token refresh returned an unexpected response."
+                )
+            if not data.get("access_token"):
+                raise AuthStateError(
+                    "Codex token refresh did not return an access token. Run Codex login again."
+                )
+            return self.store.save_tokens(
+                current=before,
+                id_token=data.get("id_token"),
+                access_token=data.get("access_token"),
+                refresh_token=data.get("refresh_token"),
             )
-        data = response.json()
-        return self.store.save_tokens(
-            current=before,
-            id_token=data.get("id_token"),
-            access_token=data.get("access_token"),
-            refresh_token=data.get("refresh_token"),
+
+
+def _refresh_token_401_message(response: requests.Response) -> str:
+    """Return a clear message for known Codex refresh-token failure codes."""
+    code = _refresh_error_code(response)
+    if code == "refresh_token_expired":
+        return "Codex refresh token has expired. Run Codex login again."
+    if code == "refresh_token_reused":
+        return (
+            "Codex refresh token was already used. Run Codex login again and avoid "
+            "sharing one auth.json across multiple active proxy or Codex processes."
         )
+    if code == "refresh_token_invalidated":
+        return "Codex refresh token was revoked. Run Codex login again."
+    return "Codex refresh token is invalid. Run Codex login again."
+
+
+def _refresh_error_code(response: requests.Response) -> str | None:
+    try:
+        payload = response.json()
+    except ValueError:
+        return None
+    if not isinstance(payload, dict):
+        return None
+    error = payload.get("error")
+    if isinstance(error, dict):
+        code = error.get("code")
+        return code if isinstance(code, str) else None
+    if isinstance(error, str):
+        return error
+    code = payload.get("code")
+    return code if isinstance(code, str) else None
