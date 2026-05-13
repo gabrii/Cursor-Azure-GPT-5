@@ -13,6 +13,8 @@ Cursor sends standard OpenAI requests. This proxy translates them to the selecte
 >
 > Cursor may currently fail to route direct `gpt-5.5` traffic through custom base URLs, causing errors such as `User API Key Rate limit exceeded`.
 >
+> The issue has already been reported to the Cursor team here: <https://forum.cursor.com/t/not-able-to-use-azure-api-key/149185/34>
+>
 > Use the documented temporary workaround instead: **[GPT-5.5 Cursor Routing Issue](#gpt-55-cursor-routing-issue)**.
 ---
 
