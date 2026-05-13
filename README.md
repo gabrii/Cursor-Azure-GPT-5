@@ -8,6 +8,12 @@ Cursor sends standard OpenAI requests. This proxy translates them to the selecte
 
 > **You still need a paid Cursor plan.** This project only redirects where model traffic goes.
 
+> [!IMPORTANT]
+> **Using GPT-5.5 in Cursor? Read this first.**
+>
+> Cursor may currently fail to route direct `gpt-5.5` traffic through custom base URLs, causing errors such as `User API Key Rate limit exceeded`.
+>
+> Use the documented temporary workaround instead: **[GPT-5.5 Cursor Routing Issue](#gpt-55-cursor-routing-issue)**.
 ---
 
 ## Why This Exists
