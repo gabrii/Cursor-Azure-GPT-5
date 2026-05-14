@@ -20,6 +20,9 @@ Cursor sends standard OpenAI requests. This proxy translates them to the selecte
 
 > [!NOTE]
 > **Maintainer note:** This repository is not owned by me, but I, [@riccardo-algorime](https://github.com/riccardo-algorime), am currently the only active maintainer keeping this project alive. I maintain it because I use it daily and want it to keep working for the community. Please open issues with clear reproduction steps when something breaks; help, testing, and pull requests are welcome.
+
+> [!NOTE]
+> **Why this is public:** This repository also exists to make the integration path easier for the Cursor team to inspect, reuse, or upstream if they decide to support this kind of provider routing natively. Until then, the exploration, testing, and rough edges are being handled here by me and the community, with the hope that Cursor can eventually take the useful parts and make them official.
 ---
 
 ## Why This Exists
