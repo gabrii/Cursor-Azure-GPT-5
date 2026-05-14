@@ -16,6 +16,10 @@ Cursor sends standard OpenAI requests. This proxy translates them to the selecte
 > The issue has already been reported to the Cursor team here: <https://forum.cursor.com/t/not-able-to-use-azure-api-key/149185/34>
 >
 > Use the documented temporary workaround instead: **[GPT-5.5 Cursor Routing Issue](#gpt-55-cursor-routing-issue)**.
+
+
+> [!NOTE]
+> **Maintainer note:** This repository is not owned by me, but I, [@riccardo-algorime](https://github.com/riccardo-algorime), am currently the only active maintainer keeping this project alive. I maintain it because I use it daily and want it to keep working for the community. Please open issues with clear reproduction steps when something breaks; help, testing, and pull requests are welcome.
 ---
 
 ## Why This Exists
