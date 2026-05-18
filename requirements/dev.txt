@@ -3,7 +3,7 @@
 
 # Testing
 pytest==9.0.2
-pytest-cov==7.0.0
+pytest-cov==7.1.0
 WebTest==3.0.7
 requests-mock==1.12.1
 pytest-mock==3.15.1
