@@ -12,7 +12,7 @@ requests==2.32.5
 
 # Deployment
 gevent==25.9.1
-gunicorn>=19.9.0
+gunicorn>=26.0.0
 supervisor==4.3.0
 
 # Environment variable parsing
